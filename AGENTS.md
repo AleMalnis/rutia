@@ -10,7 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Proyecto
 
-**RutIA** — rutina semanal recurrente gestionada por un agente de IA. La fuente de verdad es [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md) (*Spec Driven Development*): alcance MoSCoW, modelo de datos, contrato de las 6 herramientas del agente, arquitectura y estructura de carpetas. Cualquier cambio de diseño se refleja primero en la spec.
+**RutIA** — calendario de rutina semanal recurrente gestionado por un agente de IA (chat integrado + MCP). La fuente de verdad es [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md) (*Spec Driven Development*): alcance MoSCoW, modelo de datos, contrato de las 6 herramientas del agente, arquitectura y estructura de carpetas. **Consúltala antes de implementar.** Cualquier cambio de diseño se refleja primero en la spec.
 
 ## Stack
 
@@ -24,12 +24,16 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Comandos
 
 ```bash
-npm run dev      # servidor de desarrollo (http://localhost:3000)
-npm run build    # build de producción
-npm run start    # servir el build
-npm run lint     # ESLint
-npx tsc --noEmit # typecheck
+npm run dev       # servidor de desarrollo (http://localhost:3000)
+npm run build     # build de producción
+npm run start     # servir el build
+npm run lint      # ESLint
+npm run typecheck # tsc --noEmit      ← script pendiente de añadir
+npm test          # unit (Vitest)     ← pendiente: Vitest sin instalar
+npm run test:e2e  # E2E (Playwright)  ← pendiente: Playwright sin instalar
 ```
+
+Los tres últimos aún no existen en `package.json`; hasta entonces el typecheck se ejecuta con `npx tsc --noEmit`.
 
 ## Arquitectura y reglas
 
@@ -41,9 +45,12 @@ UI (React) → Server Actions / Route Handlers → Servicios (RoutineService · 
 
 - La **UI nunca** habla directamente con Supabase ni con el LLM.
 - Los **servicios** contienen la lógica (solapes, recurrencia, checks de hoy, bucle del agente); los **repositorios** encapsulan el acceso a datos.
-- Tipos compartidos y esquemas Zod en `src/lib/schemas`.
+- **Toda entrada externa** (formularios, herramientas del agente, respuestas del LLM) se valida con **Zod en la frontera**. Tipos compartidos y esquemas en `src/lib/schemas`.
 - El `user_id` **siempre lo pone el servidor** desde la sesión; jamás llega del modelo ni del cliente.
 - Las herramientas del agente validan con Zod y comprueban solapes **antes** de escribir; si hay conflicto entre bloques, no se escribe.
+- **Secretos solo en el servidor** (variables de entorno); nunca en código de cliente ni en el repo.
+- **No desactives reglas de lint ni borres tests** para «hacer que pase»: si algo estorba, coméntalo primero.
+- **Idioma:** textos de UI y documentación en español; nombres de código (variables, funciones, tablas) en inglés.
 - Estructura de carpetas: código bajo `src/` (`app/`, `components/`, `services/`, `repositories/`, `lib/`, `tests/`), migraciones en `supabase/`, E2E en `e2e/` (spec §7.3).
 - Trabajo en rama por funcionalidad → Pull Request → revisión (CodeRabbit) + CI → merge. `main` siempre desplegable.
 
@@ -52,8 +59,9 @@ UI (React) → Server Actions / Route Handlers → Servicios (RoutineService · 
 Una tarea está terminada cuando:
 
 1. Cumple lo que pide la spec (o la spec se ha actualizado primero si el diseño cambió).
-2. Respeta las capas y las reglas de seguridad de arriba (RLS, Zod, `user_id` de sesión).
-3. `npm run lint` y `npx tsc --noEmit` pasan sin errores.
-4. La lógica nueva en `services/` tiene tests unitarios (objetivo ≥ 70 % de cobertura en `services/`); los flujos clave de UI tienen E2E cuando aplique.
-5. `npm run build` compila y la app arranca en local.
-6. La PR describe qué cambia y cómo probarlo.
+2. Respeta las capas y valida las fronteras con Zod, con el `user_id` puesto por el servidor.
+3. **Ninguna consulta se salta la RLS:** todo filtra por el usuario autenticado.
+4. `npm run build` compila, y lint y typecheck están limpios.
+5. Los tests pasan. La lógica nueva en `services/` tiene tests unitarios (objetivo ≥ 70 % de cobertura en `services/`); los flujos clave de UI tienen E2E cuando aplique.
+6. La app arranca en local.
+7. La PR describe qué cambia y cómo probarlo.
