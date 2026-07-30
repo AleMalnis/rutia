@@ -35,7 +35,7 @@ npx tsc --noEmit # typecheck
 
 Capas (spec §7.2), sin saltos:
 
-```
+```text
 UI (React) → Server Actions / Route Handlers → Servicios (RoutineService · AgentService) → Repositorios (Supabase) / LLMClient
 ```
 
