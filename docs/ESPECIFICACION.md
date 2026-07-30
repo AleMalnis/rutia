@@ -230,6 +230,7 @@ Detalles de diseño:
 | Validación | Zod | Fronteras seguras entre modelo, servidor y BD |
 | Testing | Vitest (unit) + Playwright (E2E) | Unit rápidos para servicios y validación; E2E realistas de los flujos clave |
 | Observabilidad | Sentry | Errores y rendimiento en producción con capa gratuita |
+| Revisión de código | **CodeRabbit** | Revisión con IA de cada PR (resumen, riesgos, sugerencias); gratuito en repositorios públicos |
 | CI/CD | GitHub Actions + Vercel | Lint/tests en cada PR, despliegue automático |
 
 ### 7.2 Capas (Clean Architecture pragmática)
@@ -253,6 +254,8 @@ flowchart LR
 
 ```text
 rutia/
+├── AGENTS.md                  ← reglas y base de conocimiento para los agentes de IA del IDE
+├── CLAUDE.md                  ← puntero a AGENTS.md (Claude Code)
 ├── docs/
 │   └── ESPECIFICACION.md      ← este documento
 ├── src/
@@ -294,12 +297,14 @@ rutia/
 - **E2E (Playwright):** flujo feliz — registro/login → crear ítem manual → enviar mensaje al chat (LLM mockeado o fixture) → el ítem aparece en el calendario → marcar un check en «Hoy».
 - **Estática:** ESLint + Prettier + `tsc --noEmit` en CI.
 - **Observabilidad:** Sentry en cliente y servidor; log estructurado de cada tool call (herramienta, duración, resultado).
+- **Flujo de desarrollo asistido por IA:** el repositorio incluye `AGENTS.md` (stack, comandos, convenciones y definición de hecho) como base de conocimiento para los agentes del IDE, que trabajan contra esta especificación (*spec-driven*). Cada Pull Request recibe además una revisión automática de **CodeRabbit** (resumen, riesgos y sugerencias), cuyos hallazgos se triagean como cualquier revisión humana antes del merge.
 
 ---
 
 ## 10. CI/CD y despliegue
 
 - **GitHub Actions** en cada push/PR: install → lint → typecheck → tests.
+- **Flujo de trabajo:** rama por funcionalidad → Pull Request → revisión automática (CodeRabbit) + checks de CI → merge. `main` se mantiene siempre desplegable.
 - **Vercel:** preview automática por PR, producción en `main`. Variables de entorno configuradas en Vercel (LLM) y Supabase (BD).
 - Desplegar **desde el primer día** (aunque solo sea el login): la rama `main` siempre tiene una versión funcionando y las sorpresas de despliegue aparecen pronto, cuando son baratas.
 - **Distribución open source:** el README incluirá un botón «Deploy with Vercel» (clona el repo a la cuenta del visitante y le pide las variables de entorno) y la guía de autoinstalación. La migración `supabase/migrations/0001_init.sql` y el `.env.example` documentado son las otras dos piezas que lo hacen plug and play.
