@@ -1,1 +1,1 @@
-@AGENTS.md
+Sigue las instrucciones de @AGENTS.md.
