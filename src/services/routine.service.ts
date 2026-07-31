@@ -17,6 +17,8 @@ import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 // Solo chocan BLOQUES que compartan algún día y cuyas franjas se pisen; los
 // recordatorios nunca generan conflicto (tomar la pastilla en horario de
 // trabajo es lo normal). Funciones puras: los tests unitarios entran por aquí.
+// Deuda registrada (spec §12): esta comprobación vive solo en el servicio;
+// el refuerzo a nivel de BD (trigger de exclusión) queda aplazado a proposito.
 
 export type BlockCandidate = {
   kind: 'block' | 'reminder'

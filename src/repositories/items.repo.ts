@@ -103,6 +103,8 @@ export function createItemsRepo(supabase: SupabaseClient) {
     // Devuelve null si el ítem ya no existe (p. ej. borrado desde la otra
     // puerta entre la lectura y esta escritura): con .single() eso sería un
     // error PGRST116 en vez de un not_found manejable.
+    // Deuda registrada (spec §12): si el lost-update entre puertas se vuelve
+    // real, añadir aquí updated_at como revisión esperada en el WHERE.
     async update(
       userId: string,
       id: string,
