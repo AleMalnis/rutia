@@ -34,6 +34,17 @@ create table public.categories (
   unique (id, user_id)
 );
 
+-- Auxiliar para el check de días repetidos: un CHECK no admite subconsultas,
+-- pero sí llamar a una función inmutable que las use.
+create function public.array_has_duplicates(arr smallint[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(count(*) <> count(distinct v), false) from unnest(arr) as v
+$$;
+
 -- routine_items: la plantilla semanal recurrente. Un ítem multi-día es UNA
 -- sola fila con sus días en `days` (0=lunes … 6=domingo).
 create table public.routine_items (
@@ -60,8 +71,10 @@ create table public.routine_items (
     references public.categories (id, user_id)
     on delete set null (category_id),
 
-  -- días válidos: array no vacío y todos sus valores entre 0 y 6
+  -- días válidos: array unidimensional, no vacío, sin repetidos y entre 0 y 6
   constraint routine_items_days_not_empty check (cardinality(days) > 0),
+  constraint routine_items_days_one_dim check (array_ndims(days) = 1),
+  constraint routine_items_days_distinct check (not public.array_has_duplicates(days)),
   constraint routine_items_days_in_week check (days <@ '{0,1,2,3,4,5,6}'::smallint[]),
 
   -- un bloque tiene franja (end > start); un recordatorio es puntual (sin end)
@@ -117,7 +130,11 @@ create table public.routine_snapshots (
 
 create index categories_user_id_idx on public.categories (user_id);
 create index routine_items_user_id_idx on public.routine_items (user_id);
-create index completions_user_id_idx on public.completions (user_id);
+-- apoya la FK compuesta de categoría (p. ej. al borrar una categoría)
+create index routine_items_category_id_user_id_idx on public.routine_items (category_id, user_id);
+-- el panel «Hoy» consulta por usuario y fecha; el prefijo user_id cubre
+-- también las búsquedas solo por usuario
+create index completions_user_id_date_idx on public.completions (user_id, date);
 create index chat_messages_user_id_created_at_idx on public.chat_messages (user_id, created_at);
 create index routine_snapshots_user_id_created_at_idx on public.routine_snapshots (user_id, created_at);
 
@@ -156,6 +173,8 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- on conflict do nothing: un conflicto aquí (p. ej. trigger duplicado por
+  -- una doble ejecución de la migración) no debe abortar el alta del usuario
   insert into public.profiles (id, display_name)
   values (
     new.id,
@@ -163,7 +182,8 @@ begin
       nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
       split_part(new.email, '@', 1)
     )
-  );
+  )
+  on conflict (id) do nothing;
 
   insert into public.categories (user_id, name, color) values
     (new.id, 'Trabajo',  '#3b82f6'),
@@ -173,7 +193,8 @@ begin
     (new.id, 'Comidas',  '#22c55e'),
     (new.id, 'Hogar',    '#eab308'),
     (new.id, 'Ocio',     '#ec4899'),
-    (new.id, 'Descanso', '#64748b');
+    (new.id, 'Descanso', '#64748b')
+  on conflict (user_id, name) do nothing;
 
   return new;
 end;
