@@ -16,3 +16,142 @@ export type AuthCredentials = z.infer<typeof authCredentialsSchema>
 
 // Estado que devuelven las acciones de los formularios de autenticación.
 export type AuthFormState = { error?: string; info?: string } | null
+
+// ── Ítems de rutina (spec §5 y §6.2) ─────────────────────────────────────────
+
+// Día de la semana: 0=lunes … 6=domingo (spec §5).
+export const daySchema = z
+  .number('El día debe ser un número entre 0 (lunes) y 6 (domingo).')
+  .int('El día debe ser un número entero entre 0 y 6.')
+  .min(0, 'El día mínimo es 0 (lunes).')
+  .max(6, 'El día máximo es 6 (domingo).')
+
+export const daysSchema = z
+  .array(daySchema, 'days debe ser un array de días (0-6).')
+  .min(1, 'El ítem necesita al menos un día.')
+  .max(7, 'Un ítem no puede tener más de 7 días.')
+  .refine((days) => new Set(days).size === days.length, 'Hay días repetidos.')
+
+// Hora "HH:MM" en 24 h. Con este formato de ancho fijo, comparar strings
+// equivale a comparar horas ('09:00' < '19:30'), y de eso dependen la regla
+// end > start y la detección de solapes.
+export const timeSchema = z
+  .string('La hora es obligatoria.')
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida: usa el formato HH:MM en 24 h.')
+
+// La hora de fin admite además '24:00' (medianoche exacta): la rejilla de la
+// spec §4 llega a 24:00 y el tipo time de Postgres lo acepta. La comparación
+// lexicográfica sigue valiendo: '24:00' > '23:59'.
+export const endTimeSchema = z
+  .string('La hora es obligatoria.')
+  .regex(
+    /^(?:([01]\d|2[0-3]):[0-5]\d|24:00)$/,
+    'Hora inválida: usa el formato HH:MM en 24 h.',
+  )
+
+// El tipo text de Postgres no admite U+0000: sin este rechazo en la frontera,
+// un NUL colado pasaría Zod y reventaría en la BD como error no manejado.
+// (String.fromCharCode en lugar de un escape \\u para que ninguna capa de
+// tooling convierta el escape en un byte NUL literal dentro de este archivo.)
+const NUL_CHAR = String.fromCharCode(0)
+const hasNoNul = (value: string) => !value.includes(NUL_CHAR)
+
+const routineItemFields = {
+  title: z
+    .string('El título es obligatorio.')
+    .trim()
+    .min(1, 'El título no puede estar vacío.')
+    .max(80, 'El título no puede superar los 80 caracteres.')
+    .refine(hasNoNul, 'El título contiene caracteres no válidos.'),
+  kind: z.enum(['block', 'reminder'], "kind debe ser 'block' o 'reminder'."),
+  days: daysSchema,
+  start: timeSchema,
+  end: endTimeSchema.nullish(),
+  categoryId: z.uuid('categoryId debe ser un UUID.').nullish(),
+  detail: z
+    .string()
+    .trim()
+    .max(120, 'El detalle no puede superar los 120 caracteres.')
+    .refine(hasNoNul, 'El detalle contiene caracteres no válidos.')
+    .nullish(),
+  notes: z
+    .string()
+    .trim()
+    .refine(hasNoNul, 'Las notas contienen caracteres no válidos.')
+    .nullish(),
+}
+
+// Regla cruzada (spec §5): un bloque tiene franja (end > start); un
+// recordatorio es puntual y no lleva hora de fin.
+function refineKindTimes(
+  value: { kind: 'block' | 'reminder'; start: string; end?: string | null },
+  ctx: z.RefinementCtx,
+) {
+  if (value.kind === 'block') {
+    if (value.end == null) {
+      ctx.addIssue({ code: 'custom', path: ['end'], message: 'Un bloque necesita hora de fin.' })
+    } else if (value.end <= value.start) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['end'],
+        message: 'La hora de fin debe ser posterior a la de inicio.',
+      })
+    }
+  } else if (value.end != null) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['end'],
+      message: 'Un recordatorio no lleva hora de fin.',
+    })
+  }
+}
+
+// Datos completos de un ítem (sin id): la frontera de creación, y también la
+// validación del resultado de mezclar un ítem existente con un parche.
+export const routineItemDataSchema = z.object(routineItemFields).superRefine(refineKindTimes)
+
+export const createRoutineItemSchema = routineItemDataSchema
+
+// Parche de actualización: todos los campos opcionales, al menos uno presente.
+// La coherencia kind/end del resultado se valida tras mezclar con el ítem
+// actual (routineItemDataSchema), no aquí.
+export const updateRoutineItemSchema = z
+  .object({
+    title: routineItemFields.title.optional(),
+    kind: routineItemFields.kind.optional(),
+    days: daysSchema.optional(),
+    start: timeSchema.optional(),
+    end: routineItemFields.end,
+    categoryId: routineItemFields.categoryId,
+    detail: routineItemFields.detail,
+    notes: routineItemFields.notes,
+  })
+  .refine(
+    (patch) => Object.values(patch).some((v) => v !== undefined),
+    'El parche no cambia ningún campo.',
+  )
+
+export type CreateRoutineItemInput = z.infer<typeof createRoutineItemSchema>
+export type UpdateRoutineItemInput = z.infer<typeof updateRoutineItemSchema>
+
+// Entidad completa tal y como sale del repositorio. El user_id no viaja en la
+// entidad: lo pone siempre el servidor desde la sesión (spec §6.2).
+export type RoutineItem = {
+  id: string
+  title: string
+  kind: 'block' | 'reminder'
+  days: number[]
+  start: string
+  end: string | null
+  categoryId: string | null
+  detail: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type Category = {
+  id: string
+  name: string
+  color: string
+}
