@@ -53,14 +53,35 @@ export async function updateSession(request: NextRequest) {
   // AuthError (p. ej. una cookie forjada con un alg inválido): sin el catch,
   // ese throw sería un 500 en todas las rutas para ese navegador; con él, el
   // cliente queda como no autenticado y la petición sigue.
+  let isAuthenticated = false
   try {
-    await supabase.auth.getClaims()
+    const { data } = await supabase.auth.getClaims()
+    isAuthenticated = data?.claims != null
   } catch (error) {
     // Solo nombre y mensaje: el error crudo puede arrastrar a los logs el
     // stack o fragmentos del token de la cookie que lo provocó.
     const detalle =
       error instanceof Error ? `${error.name}: ${error.message}` : String(error)
     console.warn(`proxy: fallo al refrescar la sesión — ${detalle}`)
+  }
+
+  // Protección de /app (spec §4): sin sesión, a /login. Es la comprobación
+  // optimista del proxy; la verificación real sigue siendo la RLS y la
+  // sesión que valida cada server action.
+  const { pathname } = request.nextUrl
+  if (!isAuthenticated && (pathname === '/app' || pathname.startsWith('/app/'))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    const redirectResponse = NextResponse.redirect(url)
+    // conserva lo que el refresco hubiera escrito en la respuesta original
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie)
+    }
+    for (const header of ['cache-control', 'expires', 'pragma']) {
+      const value = supabaseResponse.headers.get(header)
+      if (value) redirectResponse.headers.set(header, value)
+    }
+    return redirectResponse
   }
 
   return supabaseResponse
