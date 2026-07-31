@@ -28,12 +28,12 @@ npm run dev       # servidor de desarrollo (http://localhost:3000)
 npm run build     # build de producción
 npm run start     # servir el build
 npm run lint      # ESLint
+npm test          # unit (Vitest)
 npm run typecheck # tsc --noEmit      ← script pendiente de añadir
-npm test          # unit (Vitest)     ← pendiente: Vitest sin instalar
 npm run test:e2e  # E2E (Playwright)  ← pendiente: Playwright sin instalar
 ```
 
-Los tres últimos aún no existen en `package.json`; hasta entonces el typecheck se ejecuta con `npx tsc --noEmit`.
+Los dos últimos aún no existen en `package.json`; hasta entonces el typecheck se ejecuta con `npx tsc --noEmit`.
 
 ## Arquitectura y reglas
 
