@@ -56,7 +56,11 @@ export async function updateSession(request: NextRequest) {
   try {
     await supabase.auth.getClaims()
   } catch (error) {
-    console.warn('proxy: fallo al refrescar la sesión', error)
+    // Solo nombre y mensaje: el error crudo puede arrastrar a los logs el
+    // stack o fragmentos del token de la cookie que lo provocó.
+    const detalle =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.warn(`proxy: fallo al refrescar la sesión — ${detalle}`)
   }
 
   return supabaseResponse
