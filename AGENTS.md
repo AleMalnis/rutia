@@ -28,12 +28,12 @@ npm run dev       # servidor de desarrollo (http://localhost:3000)
 npm run build     # build de producción
 npm run start     # servir el build
 npm run lint      # ESLint
+npm run typecheck # tsc --noEmit
 npm test          # unit (Vitest)
-npm run typecheck # tsc --noEmit      ← script pendiente de añadir
 npm run test:e2e  # E2E (Playwright)  ← pendiente: Playwright sin instalar
 ```
 
-Los dos últimos aún no existen en `package.json`; hasta entonces el typecheck se ejecuta con `npx tsc --noEmit`.
+`test:e2e` aún no existe en `package.json`; llegará con Playwright. CI (GitHub Actions) ejecuta lint + typecheck + tests con cobertura en cada PR.
 
 ## Arquitectura y reglas
 

@@ -1,0 +1,41 @@
+# CI de RutIA (spec §10): install → lint → typecheck → tests en cada push a
+# main y en cada pull request. El build de producción lo hace Vercel con sus
+# variables de entorno; aquí no se necesita ningún secreto.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Solo lectura: este workflow no escribe nada en el repo.
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Sin esto, checkout deja el GITHUB_TOKEN en .git/config y los pasos
+          # siguientes (npm ci con sus scripts, y el código del propio PR)
+          # podrían leerlo.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests (con umbral de cobertura en services/)
+        run: npm run test:coverage
