@@ -13,9 +13,14 @@ type Editing = { item: RoutineItem | null } | null
 export function RoutineBoard({
   items,
   categories,
+  children,
 }: {
   items: RoutineItem[]
   categories: Category[]
+  // la cabecera de la página se recibe como slot para que quede DENTRO del
+  // contenedor inert: si no, con el diálogo abierto se puede tabular hasta
+  // «Cerrar sesión» y cerrar sesión perdiendo lo que se estaba editando
+  children?: React.ReactNode
 }) {
   const [editing, setEditing] = useState<Editing>(null)
 
@@ -25,6 +30,8 @@ export function RoutineBoard({
           hasta las tarjetas del calendario que quedan detrás del velo y
           abrir otro ítem, perdiendo lo que se estaba editando */}
       <div className="flex flex-1 flex-col gap-4" inert={editing != null}>
+        {children}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CategoryLegend categories={categories} />
           <button

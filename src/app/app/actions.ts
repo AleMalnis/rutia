@@ -16,17 +16,39 @@ export type ItemFormState =
   | { status: 'error'; message: string }
   | { status: 'conflict'; conflicts: OverlapConflict[] }
 
+// Devuelve null si la comprobación de sesión FALLÓ, que no es lo mismo que no
+// tener sesión: getClaims consulta el endpoint JWKS y relanza lo que no sea un
+// AuthError, así que un fallo de red no debe cerrarle la sesión al usuario ni
+// tumbar la pantalla. La ausencia real de sesión sí redirige.
+// El redirect vive fuera del try a propósito: lanza NEXT_REDIRECT y capturarlo
+// lo dejaría sin efecto.
 async function getContext() {
   const supabase = await createClient()
-  const { data } = await supabase.auth.getClaims()
-  if (data == null || typeof data.claims.sub !== 'string') {
+
+  let claims: { sub?: unknown } | null = null
+  try {
+    const { data } = await supabase.auth.getClaims()
+    claims = data?.claims ?? null
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error(`getContext: ${detail}`)
+    return null
+  }
+
+  if (typeof claims?.sub !== 'string') {
     redirect('/login')
   }
+
   return {
-    userId: data.claims.sub,
+    userId: claims.sub,
     service: createRoutineService(createItemsRepo(supabase)),
   }
 }
+
+const SESSION_CHECK_FAILED = {
+  status: 'error',
+  message: 'No se pudo verificar tu sesión. Inténtalo de nuevo.',
+} as const
 
 // Un fallo del repositorio (Supabase caído, timeout) no debe propagarse: sin
 // captura, el rechazo de la acción tumba toda la pantalla /app al error
@@ -42,7 +64,9 @@ export async function saveItem(
   _prevState: ItemFormState,
   formData: FormData,
 ): Promise<ItemFormState> {
-  const { userId, service } = await getContext()
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+  const { userId, service } = context
 
   const itemId = formData.get('itemId')
   const input = parseItemForm(formData)
@@ -74,7 +98,9 @@ export async function saveItem(
 }
 
 export async function deleteItem(itemId: string): Promise<ItemFormState> {
-  const { userId, service } = await getContext()
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+  const { userId, service } = context
 
   try {
     const result = await service.deleteItems(userId, [itemId])
