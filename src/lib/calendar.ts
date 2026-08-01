@@ -2,6 +2,18 @@
 // con la altura de cada bloque proporcional a su duración. Funciones puras,
 // cubiertas por tests unitarios.
 
+// 0=lunes … 6=domingo (spec §5).
+export const DAY_NAMES = [
+  'Lunes',
+  'Martes',
+  'Miércoles',
+  'Jueves',
+  'Viernes',
+  'Sábado',
+  'Domingo',
+]
+export const DAY_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
 export const DAY_START_MIN = 6 * 60
 export const DAY_END_MIN = 24 * 60
 export const HOUR_PX = 48

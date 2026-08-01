@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
-import { CategoryLegend } from '@/components/category-legend'
-import { WeekCalendar } from '@/components/week-calendar'
+import { RoutineBoard } from '@/components/routine-board'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
@@ -46,17 +45,7 @@ export default async function AppPage() {
         </form>
       </header>
 
-      <CategoryLegend categories={categories} />
-
-      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <WeekCalendar items={items} categories={categories} />
-      </section>
-
-      {items.length === 0 && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Tu rutina está vacía. Muy pronto podrás crearla conversando con el agente.
-        </p>
-      )}
+      <RoutineBoard items={items} categories={categories} />
     </main>
   )
 }

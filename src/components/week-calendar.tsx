@@ -1,6 +1,9 @@
+'use client'
+
 import type { Category, RoutineItem } from '@/lib/schemas'
 import {
   blockGeometry,
+  DAY_NAMES,
   GRID_HEIGHT_PX,
   HOUR_PX,
   reminderCenters,
@@ -9,9 +12,8 @@ import {
 // Calendario semanal (spec §4): columnas L-D, filas de 06:00 a 24:00. Los
 // bloques son tarjetas con altura proporcional a su duración; los
 // recordatorios, chips anclados a su hora. Un ítem multi-día se pinta en cada
-// día de su array. Server component puro: sin estado ni interacción todavía.
+// día de su array. Presentación pura: el estado del diálogo vive en el padre.
 
-const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6)
 const FALLBACK_COLOR = '#71717a'
 const GRID_COLS = 'grid grid-cols-[3.25rem_repeat(7,minmax(6rem,1fr))]'
@@ -19,9 +21,10 @@ const GRID_COLS = 'grid grid-cols-[3.25rem_repeat(7,minmax(6rem,1fr))]'
 type Props = {
   items: RoutineItem[]
   categories: Category[]
+  onItemClick: (item: RoutineItem) => void
 }
 
-export function WeekCalendar({ items, categories }: Props) {
+export function WeekCalendar({ items, categories, onItemClick }: Props) {
   const colorByCategory = new Map(categories.map((c) => [c.id, c.color]))
   const colorOf = (item: RoutineItem) =>
     (item.categoryId && colorByCategory.get(item.categoryId)) || FALLBACK_COLOR
@@ -86,7 +89,12 @@ export function WeekCalendar({ items, categories }: Props) {
                 {items
                   .filter((item) => item.kind === 'block' && item.days.includes(day))
                   .map((item) => (
-                    <BlockCard key={item.id} item={item} color={colorOf(item)} />
+                    <BlockCard
+                      key={item.id}
+                      item={item}
+                      color={colorOf(item)}
+                      onClick={() => onItemClick(item)}
+                    />
                   ))}
 
                 {reminders.map((item, index) => (
@@ -95,6 +103,7 @@ export function WeekCalendar({ items, categories }: Props) {
                     item={item}
                     color={colorOf(item)}
                     center={centers[index]}
+                    onClick={() => onItemClick(item)}
                   />
                 ))}
               </div>
@@ -106,14 +115,24 @@ export function WeekCalendar({ items, categories }: Props) {
   )
 }
 
-function BlockCard({ item, color }: { item: RoutineItem; color: string }) {
+function BlockCard({
+  item,
+  color,
+  onClick,
+}: {
+  item: RoutineItem
+  color: string
+  onClick: () => void
+}) {
   if (item.end == null) return null
   const geometry = blockGeometry(item.start, item.end)
   if (geometry == null) return null
 
   return (
-    <div
-      className="absolute inset-x-1 overflow-hidden rounded-md border-l-4 px-1.5 py-0.5"
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left transition-opacity hover:opacity-80"
       style={{
         top: geometry.top,
         height: geometry.height,
@@ -133,7 +152,7 @@ function BlockCard({ item, color }: { item: RoutineItem; color: string }) {
       <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-500">
         {item.start}–{item.end}
       </p>
-    </div>
+    </button>
   )
 }
 
@@ -141,16 +160,20 @@ function ReminderChip({
   item,
   color,
   center,
+  onClick,
 }: {
   item: RoutineItem
   color: string
   center: number
+  onClick: () => void
 }) {
   // Anclado a la derecha sin ocupar todo el ancho: si coincide en hora con el
   // inicio de un bloque, el título del bloque sigue leyéndose a la izquierda.
   return (
-    <div
-      className="absolute right-1 z-10 flex h-5 max-w-[calc(100%-0.5rem)] -translate-y-1/2 items-center gap-1 rounded-full border bg-white px-1.5 shadow-sm dark:bg-zinc-900"
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute right-1 z-10 flex h-5 max-w-[calc(100%-0.5rem)] -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full border bg-white px-1.5 shadow-sm transition-opacity hover:opacity-80 dark:bg-zinc-900"
       style={{ top: center, borderColor: color }}
       title={`${item.title} · ${item.start}${item.detail ? ` · ${item.detail}` : ''}`}
     >
@@ -161,6 +184,6 @@ function ReminderChip({
         {item.title}
         {item.detail ? ` · ${item.detail}` : ''}
       </span>
-    </div>
+    </button>
   )
 }
