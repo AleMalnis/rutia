@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { parseItemForm } from '@/lib/item-form'
 import { createClient } from '@/lib/supabase/server'
+import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
+import { createProfilesRepo } from '@/repositories/profiles.repo'
 import { createRoutineService, type OverlapConflict } from '@/services/routine.service'
 
 // Server actions de la gestión manual de ítems (spec §7.2: la UI llama aquí,
@@ -41,7 +43,12 @@ async function getContext() {
 
   return {
     userId: claims.sub,
-    service: createRoutineService(createItemsRepo(supabase)),
+    supabase,
+    service: createRoutineService({
+      items: createItemsRepo(supabase),
+      completions: createCompletionsRepo(supabase),
+      profiles: createProfilesRepo(supabase),
+    }),
   }
 }
 
@@ -120,6 +127,70 @@ export async function deleteItem(itemId: string): Promise<ItemFormState> {
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
     console.error(`deleteItem: ${detail}`)
     return { status: 'error', message: 'No se pudo borrar el ítem. Inténtalo de nuevo.' }
+  }
+}
+
+export type ToggleState = { status: 'ok'; done: boolean } | { status: 'error'; message: string }
+
+/**
+ * Marca o desmarca un ítem del panel «Hoy». La fecha la pone el servidor;
+ * `panelDate` es solo la fecha que el panel tenía pintada, para detectar que
+ * el día ha cambiado con la pestaña abierta.
+ */
+export async function toggleCompleted(
+  itemId: string,
+  done: boolean,
+  panelDate: string,
+): Promise<ToggleState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const result = await context.service.setCompleted(
+      context.userId,
+      itemId,
+      done,
+      new Date(),
+      panelDate,
+    )
+
+    if (!result.ok) {
+      if (result.reason === 'not_found' || result.reason === 'stale') {
+        revalidatePath('/app')
+        return {
+          status: 'error',
+          message: result.reason === 'stale' ? result.message : 'Este ítem ya no existe.',
+        }
+      }
+      return {
+        status: 'error',
+        message: result.reason === 'conflict' ? 'No se pudo marcar el ítem.' : result.message,
+      }
+    }
+
+    revalidatePath('/app')
+    return { status: 'ok', done: result.done }
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error(`toggleCompleted: ${detail}`)
+    return { status: 'error', message: 'No se pudo marcar el ítem. Inténtalo de nuevo.' }
+  }
+}
+
+/**
+ * Guarda la zona horaria real del navegador. Sin esto todo el mundo corría con
+ * el valor por defecto del perfil y «hoy» se calculaba en el huso equivocado.
+ */
+export async function reportTimezone(timezone: string): Promise<void> {
+  const context = await getContext()
+  if (context == null) return
+
+  try {
+    const { ok } = await context.service.updateTimezone(context.userId, timezone)
+    if (ok) revalidatePath('/app')
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error(`reportTimezone: ${detail}`)
   }
 }
 
