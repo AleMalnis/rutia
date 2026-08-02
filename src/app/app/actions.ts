@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { parseItemForm } from '@/lib/item-form'
 import { createClient } from '@/lib/supabase/server'
+import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
@@ -48,6 +49,7 @@ async function getContext() {
       items: createItemsRepo(supabase),
       completions: createCompletionsRepo(supabase),
       profiles: createProfilesRepo(supabase),
+      categories: createCategoriesRepo(supabase),
     }),
   }
 }
@@ -61,7 +63,10 @@ const SESSION_CHECK_FAILED = {
 // captura, el rechazo de la acción tumba toda la pantalla /app al error
 // boundary y el usuario pierde el formulario. Se registra y se devuelve un
 // mensaje genérico, sin filtrar detalles internos.
-function unexpectedFailure(scope: string, error: unknown): ItemFormState {
+function unexpectedFailure(
+  scope: string,
+  error: unknown,
+): { status: 'error'; message: string } {
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
   console.error(`${scope}: ${detail}`)
   return { status: 'error', message: 'No se pudo guardar. Inténtalo de nuevo.' }
@@ -174,6 +179,62 @@ export async function toggleCompleted(
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
     console.error(`toggleCompleted: ${detail}`)
     return { status: 'error', message: 'No se pudo marcar el ítem. Inténtalo de nuevo.' }
+  }
+}
+
+export type CategoryFormState = { status: 'ok' } | { status: 'error'; message: string } | null
+
+/** Crea o actualiza una categoría propia (spec §4: categorías editables). */
+export async function saveCategory(
+  categoryId: string | null,
+  input: { name: string; color: string },
+): Promise<CategoryFormState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const result =
+      categoryId == null
+        ? await context.service.createCategory(context.userId, input)
+        : await context.service.updateCategory(context.userId, categoryId, input)
+
+    if (!result.ok) {
+      if (result.reason === 'not_found') {
+        revalidatePath('/app')
+        return { status: 'error', message: 'Esta categoría ya no existe.' }
+      }
+      return {
+        status: 'error',
+        message: result.reason === 'conflict' ? 'No se pudo guardar la categoría.' : result.message,
+      }
+    }
+
+    revalidatePath('/app')
+    return { status: 'ok' }
+  } catch (error) {
+    return unexpectedFailure('saveCategory', error)
+  }
+}
+
+/** Borra una categoría; sus ítems quedan «sin categoría». */
+export async function deleteCategory(categoryId: string): Promise<CategoryFormState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const result = await context.service.deleteCategory(context.userId, categoryId)
+    if (!result.ok) {
+      return {
+        status: 'error',
+        message: result.reason === 'conflict' ? 'No se pudo borrar la categoría.' : result.message,
+      }
+    }
+    revalidatePath('/app')
+    return { status: 'ok' }
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error(`deleteCategory: ${detail}`)
+    return { status: 'error', message: 'No se pudo borrar la categoría. Inténtalo de nuevo.' }
   }
 }
 

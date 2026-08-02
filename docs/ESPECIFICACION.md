@@ -114,7 +114,8 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 **Detalles de acabado:**
 - Los recordatorios puntuales se pintan como **chips** anclados a su hora; los bloques, como tarjetas con altura proporcional a su duración.
 - Los ítems recién creados o movidos se resaltan ~2 s: feedback visual inmediato de lo que acaba de hacer el agente.
-- Colores por categoría con leyenda: Trabajo, Estudio, Deporte, **Salud**, Comidas, Hogar, Ocio, Descanso (editables).
+- Colores por categoría con leyenda: Trabajo, Estudio, Deporte, **Salud**, Comidas, Hogar, Ocio, Descanso (editables). El usuario puede **crear, renombrar y borrar categorías propias**; al borrar una, sus ítems quedan «sin categoría». El color se elige de un **muestrario validado** (8 tonos con par claro/oscuro, contraste y separación para daltonismo comprobados con herramienta, no a ojo): así cualquier categoría se lee bien en ambos modos.
+- **Apariencia personalizable** (guardada en `profiles.preferences`): modo claro/oscuro/automático, un **tema de superficie** entre varios presets validados de contraste (cada preset define fondo de página, fondo de tarjeta, bordes, tinta y acento vía variables CSS) y **fuente** (sistema, serif o redondeada, autoalojadas). No hay pickers libres en v1: solo combinaciones que pasan la validación.
 - Los ítems muestran su detalle como subtítulo (p. ej. «Cena · Pasta», «Medicación · Enalapril 10 mg»).
 - Indicador «pensando…» mientras el agente trabaja; mensajes del agente breves y accionables.
 

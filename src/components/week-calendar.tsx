@@ -8,6 +8,7 @@ import {
   HOUR_PX,
   reminderCenters,
 } from '@/lib/calendar'
+import { categoryColorStyle } from '@/lib/category-colors'
 
 // Calendario semanal (spec §4): columnas L-D, filas de 06:00 a 24:00. Los
 // bloques son tarjetas con altura proporcional a su duración; los
@@ -15,7 +16,6 @@ import {
 // día de su array. Presentación pura: el estado del diálogo vive en el padre.
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6)
-const FALLBACK_COLOR = '#71717a'
 const GRID_COLS = 'grid grid-cols-[3.25rem_repeat(7,minmax(6rem,1fr))]'
 
 type Props = {
@@ -27,7 +27,7 @@ type Props = {
 export function WeekCalendar({ items, categories, onItemClick }: Props) {
   const colorByCategory = new Map(categories.map((c) => [c.id, c.color]))
   const colorOf = (item: RoutineItem) =>
-    (item.categoryId && colorByCategory.get(item.categoryId)) || FALLBACK_COLOR
+    (item.categoryId && colorByCategory.get(item.categoryId)) || null
 
   return (
     // En móvil el calendario se desplaza en horizontal (spec §4, responsive).
@@ -121,7 +121,7 @@ function BlockCard({
   onClick,
 }: {
   item: RoutineItem
-  color: string
+  color: string | null
   onClick: () => void
 }) {
   if (item.end == null) return null
@@ -132,13 +132,14 @@ function BlockCard({
     <button
       type="button"
       onClick={onClick}
-      className="absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left transition-opacity hover:opacity-80"
+      className="cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left transition-opacity hover:opacity-80"
       style={{
+        ...categoryColorStyle(color),
         top: geometry.top,
         height: geometry.height,
-        borderLeftColor: color,
+        borderLeftColor: 'var(--cat)',
         // color de la categoría con ~15 % de opacidad como fondo
-        backgroundColor: `${color}26`,
+        backgroundColor: 'color-mix(in srgb, var(--cat) 15%, transparent)',
       }}
       title={`${item.title} · ${item.start}–${item.end}${item.detail ? ` · ${item.detail}` : ''}`}
     >
@@ -163,7 +164,7 @@ function ReminderChip({
   onClick,
 }: {
   item: RoutineItem
-  color: string
+  color: string | null
   center: number
   onClick: () => void
 }) {
@@ -173,11 +174,15 @@ function ReminderChip({
     <button
       type="button"
       onClick={onClick}
-      className="absolute right-1 z-10 flex h-5 max-w-[calc(100%-0.5rem)] -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full border bg-white px-1.5 shadow-sm transition-opacity hover:opacity-80 dark:bg-zinc-900"
-      style={{ top: center, borderColor: color }}
+      className="cat-mark absolute right-1 z-10 flex h-5 max-w-[calc(100%-0.5rem)] -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full border bg-white px-1.5 shadow-sm transition-opacity hover:opacity-80 dark:bg-zinc-900"
+      style={{ ...categoryColorStyle(color), top: center, borderColor: 'var(--cat)' }}
       title={`${item.title} · ${item.start}${item.detail ? ` · ${item.detail}` : ''}`}
     >
-      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+      <span
+        aria-hidden
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ backgroundColor: 'var(--cat)' }}
+      />
       {/* el detalle como subtítulo también en el chip (spec §4):
           «Medicación · Enalapril 10 mg» */}
       <span className="truncate text-[11px] text-zinc-800 dark:text-zinc-200">

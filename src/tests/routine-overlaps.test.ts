@@ -5,6 +5,7 @@ import {
   findBlockOverlaps,
   type BlockCandidate,
 } from '@/services/routine.service'
+import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
@@ -24,7 +25,21 @@ function deps(items: ItemsRepo) {
     },
     async setTimezone() {},
   }
-  return { items, completions, profiles }
+  const categories: CategoriesRepo = {
+    async listByUser() {
+      return []
+    },
+    async insert() {
+      throw new Error('no usado')
+    },
+    async update() {
+      return null
+    },
+    async deleteById() {
+      return 0
+    },
+  }
+  return { items, completions, profiles, categories }
 }
 
 let seq = 0

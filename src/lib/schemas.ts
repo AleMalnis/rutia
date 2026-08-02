@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CATEGORY_COLOR_VALUES } from '@/lib/category-colors'
 
 // Esquemas Zod y tipos compartidos (spec §7.2: validación en todas las
 // fronteras; los formularios nunca llegan al servidor sin pasar por aquí).
@@ -133,6 +134,42 @@ export const updateRoutineItemSchema = z
 
 export type CreateRoutineItemInput = z.infer<typeof createRoutineItemSchema>
 export type UpdateRoutineItemInput = z.infer<typeof updateRoutineItemSchema>
+
+// ── Categorías propias (spec §4) ─────────────────────────────────────────────
+
+export const categoryInputSchema = z.object({
+  name: z
+    .string('El nombre es obligatorio.')
+    .trim()
+    .min(1, 'El nombre no puede estar vacío.')
+    .max(40, 'El nombre no puede superar los 40 caracteres.')
+    .refine(hasNoNul, 'El nombre contiene caracteres no válidos.'),
+  // solo colores del muestrario validado: garantiza lectura en ambos modos
+  color: z
+    .string('Elige un color.')
+    .refine(
+      (value) => CATEGORY_COLOR_VALUES.includes(value),
+      'Elige un color del muestrario.',
+    ),
+})
+
+/**
+ * Al editar se admite además el color que YA tenía la categoría, aunque sea
+ * heredado de la paleta antigua: si no, renombrarla obligaría a cambiarle el
+ * color. Los colores nuevos siguen restringidos al muestrario.
+ */
+export function categoryUpdateSchema(currentColor: string) {
+  return categoryInputSchema.extend({
+    color: z
+      .string('Elige un color.')
+      .refine(
+        (value) => value === currentColor || CATEGORY_COLOR_VALUES.includes(value),
+        'Elige un color del muestrario.',
+      ),
+  })
+}
+
+export type CategoryInput = z.infer<typeof categoryInputSchema>
 
 // Entidad completa tal y como sale del repositorio. El user_id no viaja en la
 // entidad: lo pone siempre el servidor desde la sesión (spec §6.2).

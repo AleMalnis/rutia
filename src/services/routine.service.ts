@@ -1,12 +1,16 @@
 import { z } from 'zod'
 import {
+  categoryInputSchema,
+  categoryUpdateSchema,
   createRoutineItemSchema,
   routineItemDataSchema,
   updateRoutineItemSchema,
+  type Category,
   type CreateRoutineItemInput,
   type RoutineItem,
 } from '@/lib/schemas'
 import { isValidTimezone, itemsForDay, todayInTimezone } from '@/lib/today'
+import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
@@ -119,16 +123,28 @@ function categoryFkFailure(error: unknown): ServiceFailure | null {
 // parcial. Debe validar todo el lote, comprobar solapes contra lo existente y
 // entre los propios ítems del lote (findBlockOverlaps), y solo entonces
 // insertar en una única llamada.
+export type CategoryResult = { ok: true; category: Category } | ServiceFailure
+
 export type RoutineDeps = {
   items: ItemsRepo
   completions: CompletionsRepo
   profiles: ProfilesRepo
+  categories: CategoriesRepo
+}
+
+// unique(user_id, name) en BD: el duplicado llega como 23505
+function duplicateCategoryFailure(error: unknown): ServiceFailure | null {
+  if (error instanceof RepoError && error.code === '23505') {
+    return { ok: false, reason: 'invalid', message: 'Ya existe una categoría con ese nombre.' }
+  }
+  return null
 }
 
 export function createRoutineService({
   items: itemsRepo,
   completions: completionsRepo,
   profiles: profilesRepo,
+  categories: categoriesRepo,
 }: RoutineDeps) {
   return {
     async listItems(userId: string): Promise<ListResult> {
@@ -203,6 +219,64 @@ export function createRoutineService({
         await completionsRepo.markUndone(userId, parsedId.data, date)
       }
       return { ok: true, done }
+    },
+
+    async listCategories(userId: string): Promise<Category[]> {
+      return categoriesRepo.listByUser(userId)
+    },
+
+    async createCategory(userId: string, input: unknown): Promise<CategoryResult> {
+      const parsed = categoryInputSchema.safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      try {
+        return { ok: true, category: await categoriesRepo.insert(userId, parsed.data) }
+      } catch (error) {
+        const failure = duplicateCategoryFailure(error)
+        if (failure) return failure
+        throw error
+      }
+    },
+
+    async updateCategory(userId: string, categoryId: unknown, input: unknown): Promise<CategoryResult> {
+      const parsedId = idSchema.safeParse(categoryId)
+      if (!parsedId.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsedId.error) }
+      }
+
+      // se admite conservar el color actual aunque sea heredado (ver schema)
+      const current = (await categoriesRepo.listByUser(userId)).find(
+        (category) => category.id === parsedId.data,
+      )
+      if (current == null) {
+        return { ok: false, reason: 'not_found', message: 'La categoría no existe.' }
+      }
+
+      const parsed = categoryUpdateSchema(current.color).safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      try {
+        const category = await categoriesRepo.update(userId, parsedId.data, parsed.data)
+        if (category == null) {
+          return { ok: false, reason: 'not_found', message: 'La categoría no existe.' }
+        }
+        return { ok: true, category }
+      } catch (error) {
+        const failure = duplicateCategoryFailure(error)
+        if (failure) return failure
+        throw error
+      }
+    },
+
+    /** Los ítems de la categoría borrada quedan «sin categoría». */
+    async deleteCategory(userId: string, categoryId: unknown): Promise<DeleteResult> {
+      const parsedId = idSchema.safeParse(categoryId)
+      if (!parsedId.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsedId.error) }
+      }
+      return { ok: true, deleted: await categoriesRepo.deleteById(userId, parsedId.data) }
     },
 
     /** Guarda la zona horaria real del navegador (spec §5: profiles.timezone). */

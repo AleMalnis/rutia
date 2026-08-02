@@ -27,10 +27,11 @@ export default async function AppPage() {
     items: createItemsRepo(supabase),
     completions: createCompletionsRepo(supabase),
     profiles: createProfilesRepo(supabase),
+    categories: createCategoriesRepo(supabase),
   })
   const [{ items }, categories, today] = await Promise.all([
     routineService.listItems(userId),
-    createCategoriesRepo(supabase).listByUser(userId),
+    routineService.listCategories(userId),
     routineService.listToday(userId, new Date()),
   ])
 

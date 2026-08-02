@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_TIMEZONE, itemsForDay, todayInTimezone } from '@/lib/today'
 import type { RoutineItem } from '@/lib/schemas'
 import { createRoutineService } from '@/services/routine.service'
+import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import type { ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
@@ -140,7 +141,26 @@ describe('RoutineService: hoy y completado', () => {
         zone = tz
       },
     }
-    return { deps: { items: itemsRepo, completions, profiles }, calls, marked, zone: () => zone }
+    const categories: CategoriesRepo = {
+      async listByUser() {
+        return []
+      },
+      async insert() {
+        throw new Error('no usado')
+      },
+      async update() {
+        return null
+      },
+      async deleteById() {
+        return 0
+      },
+    }
+    return {
+      deps: { items: itemsRepo, completions, profiles, categories },
+      calls,
+      marked,
+      zone: () => zone,
+    }
   }
 
   it('listToday devuelve solo lo de hoy, en orden y con su check', async () => {

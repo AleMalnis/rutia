@@ -3,6 +3,7 @@
 import { useEffect, useOptimistic, useState, useTransition } from 'react'
 import { reportTimezone, toggleCompleted } from '@/app/app/actions'
 import { DAY_NAMES } from '@/lib/calendar'
+import { categoryColorStyle } from '@/lib/category-colors'
 import type { Category, RoutineItem } from '@/lib/schemas'
 
 // Panel «Hoy» (spec §4 y Must #9): lo que toca hoy en orden, con casilla de
@@ -10,8 +11,6 @@ import type { Category, RoutineItem } from '@/lib/schemas'
 // de forma optimista y el error se muestra si el servidor lo rechaza.
 
 export type TodayEntry = { item: RoutineItem; done: boolean }
-
-const FALLBACK_COLOR = '#71717a'
 
 export function TodayPanel({
   entries,
@@ -96,8 +95,7 @@ export function TodayPanel({
         <ul role="list" className="flex flex-col">
           {optimistic.map((entry) => {
             const color =
-              (entry.item.categoryId && colorByCategory.get(entry.item.categoryId)) ||
-              FALLBACK_COLOR
+              (entry.item.categoryId && colorByCategory.get(entry.item.categoryId)) || null
             const texto = `${entry.item.title}${entry.item.detail ? ` · ${entry.item.detail}` : ''}`
             return (
               <li key={entry.item.id} className="flex items-center gap-2">
@@ -114,8 +112,8 @@ export function TodayPanel({
                 </label>
                 <span
                   aria-hidden
-                  className="h-3 w-1 shrink-0 rounded-full"
-                  style={{ backgroundColor: color }}
+                  className="cat-mark h-3 w-1 shrink-0 rounded-full"
+                  style={{ ...categoryColorStyle(color), backgroundColor: 'var(--cat)' }}
                 />
                 <span
                   aria-hidden
