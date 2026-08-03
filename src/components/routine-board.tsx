@@ -45,8 +45,8 @@ export function RoutineBoard({
         {children}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CategoryLegend categories={categories} />
-          <div className="flex gap-2">
+          {/* «Categorías» abre el gestor y va junto a la leyenda que gobierna */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <button
               type="button"
               onClick={() => setDialog({ type: 'categories' })}
@@ -54,14 +54,15 @@ export function RoutineBoard({
             >
               Categorías
             </button>
-            <button
-              type="button"
-              onClick={() => openItem(null)}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
-              Nuevo ítem
-            </button>
+            <CategoryLegend categories={categories} />
           </div>
+          <button
+            type="button"
+            onClick={() => openItem(null)}
+            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          >
+            Nuevo ítem
+          </button>
         </div>
 
         {/* «Hoy» va primero en el DOM porque en móvil es la vista principal
