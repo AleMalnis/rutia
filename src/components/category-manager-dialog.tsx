@@ -29,6 +29,8 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
   const backdropMouseDown = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const confirmRef = useRef<HTMLButtonElement>(null)
+  const deleteRefs = useRef(new Map<string, HTMLButtonElement | null>())
+  const lastConfirmed = useRef<string | null>(null)
 
   // El fondo pasa a inert en el mismo commit, así que el navegador ya ha
   // sacado el foco del botón que abrió esto: hay que llevarlo al diálogo a
@@ -38,10 +40,21 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
     dialogRef.current?.focus()
   }, [])
 
-  // Al pasar a «¿Borrar?» desaparece el botón que tenía el foco y este caería
-  // a body; se lleva al «Sí», que es la acción que el usuario venía a hacer.
+  // Los botones se sustituyen entre sí al entrar y salir de la confirmación, y
+  // cada desmontaje dejaría el foco en body. Al confirmar va al «Sí»; al
+  // cancelar vuelve al «Borrar» de esa fila, o al diálogo si la fila ya no
+  // existe porque el borrado se completó.
   useEffect(() => {
-    if (confirmingDelete != null) confirmRef.current?.focus()
+    if (confirmingDelete != null) {
+      lastConfirmed.current = confirmingDelete
+      confirmRef.current?.focus()
+      return
+    }
+    if (lastConfirmed.current != null) {
+      const volverA = deleteRefs.current.get(lastConfirmed.current) ?? dialogRef.current
+      lastConfirmed.current = null
+      volverA?.focus()
+    }
   }, [confirmingDelete])
 
   // El color heredado de la paleta antigua se ofrece como novena muestra: sin
@@ -184,6 +197,9 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                     Editar
                   </button>
                   <button
+                    ref={(el) => {
+                      deleteRefs.current.set(category.id, el)
+                    }}
                     type="button"
                     onClick={() => setConfirmingDelete(category.id)}
                     disabled={isPending || draft != null}
