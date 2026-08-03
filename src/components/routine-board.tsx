@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ItemFormDialog } from '@/components/item-form-dialog'
@@ -40,6 +40,7 @@ export function RoutineBoard({
   // efecto dentro del diálogo solo podría guardar body y la restauración no
   // devolvería al usuario a su sitio.
   const trigger = useRef<HTMLElement | null>(null)
+  const restorePending = useRef(false)
 
   function open(next: NonNullable<Dialog>) {
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -47,9 +48,20 @@ export function RoutineBoard({
   }
 
   function close() {
+    // Solo se marca: enfocar aquí no serviría de nada porque React todavía no
+    // ha quitado el `inert` del fondo y un elemento inerte no acepta el foco.
+    restorePending.current = true
     setDialog(null)
-    trigger.current?.focus()
   }
+
+  // Ya con el DOM actualizado (y el `inert` retirado), el foco vuelve al
+  // control que abrió el diálogo.
+  useEffect(() => {
+    if (dialog == null && restorePending.current) {
+      restorePending.current = false
+      trigger.current?.focus()
+    }
+  }, [dialog])
 
   const openItem = (item: RoutineItem | null) => open({ type: 'item', item })
 
