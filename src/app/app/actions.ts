@@ -247,8 +247,10 @@ export async function reportTimezone(timezone: string): Promise<void> {
   if (context == null) return
 
   try {
-    const { ok } = await context.service.updateTimezone(context.userId, timezone)
-    if (ok) revalidatePath('/app')
+    // solo si de verdad cambió: si no, cada montaje del panel invalidaría la
+    // caché de /app sin necesidad
+    const { changed } = await context.service.updateTimezone(context.userId, timezone)
+    if (changed) revalidatePath('/app')
   } catch (error) {
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
     console.error(`reportTimezone: ${detail}`)

@@ -176,14 +176,17 @@ export function createRoutineService({
      * `expectedDate` es la fecha para la que se pintó el panel del usuario: si
      * el día ha cambiado mientras la pestaña estaba abierta, no se escribe
      * nada (marcar la medicación de ayer en la fecha de hoy sería peor que no
-     * marcarla).
+     * marcarla). Es obligatorio y explícito: con `null` se renuncia a esa
+     * comprobación a sabiendas (el agente actúa sobre el estado del servidor,
+     * no sobre una vista que pueda estar caducada), y así nadie se la salta por
+     * olvidarse de pasar el parámetro.
      */
     async setCompleted(
       userId: string,
       itemId: unknown,
       done: boolean,
       now: Date,
-      expectedDate?: string,
+      expectedDate: string | null,
     ): Promise<CompletedResult> {
       const parsedId = idSchema.safeParse(itemId)
       if (!parsedId.success) {
@@ -279,13 +282,20 @@ export function createRoutineService({
       return { ok: true, deleted: await categoriesRepo.deleteById(userId, parsedId.data) }
     },
 
-    /** Guarda la zona horaria real del navegador (spec §5: profiles.timezone). */
-    async updateTimezone(userId: string, timezone: unknown): Promise<{ ok: boolean }> {
-      if (!isValidTimezone(timezone)) return { ok: false }
+    /**
+     * Guarda la zona horaria real del navegador (spec §5: profiles.timezone).
+     * `changed` distingue «guardado» de «ya era esa», para que el llamador no
+     * invalide la caché en cada montaje del panel.
+     */
+    async updateTimezone(
+      userId: string,
+      timezone: unknown,
+    ): Promise<{ ok: boolean; changed: boolean }> {
+      if (!isValidTimezone(timezone)) return { ok: false, changed: false }
       const current = await profilesRepo.getTimezone(userId)
-      if (current === timezone) return { ok: true }
+      if (current === timezone) return { ok: true, changed: false }
       await profilesRepo.setTimezone(userId, timezone)
-      return { ok: true }
+      return { ok: true, changed: true }
     },
 
     async createItem(userId: string, input: unknown): Promise<ItemResult> {

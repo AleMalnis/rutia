@@ -26,6 +26,11 @@ export function TodayPanel({
   onItemClick: (item: RoutineItem) => void
 }) {
   const [error, setError] = useState<string | null>(null)
+  // Ítems con una escritura en vuelo. Sin esto, dos clics rápidos sobre la
+  // misma casilla lanzan dos peticiones con `done` opuestos y, si resuelven en
+  // orden inverso, lo guardado no es lo último que pidió el usuario. En una
+  // app de medicación eso no es cosmético.
+  const [pendingIds, setPendingIds] = useState<string[]>([])
   const [, startTransition] = useTransition()
   const [optimistic, setOptimistic] = useOptimistic(
     entries,
@@ -47,14 +52,18 @@ export function TodayPanel({
 
   function toggle(entry: TodayEntry) {
     const next = !entry.done
+    const id = entry.item.id
     setError(null)
+    setPendingIds((ids) => [...ids, id])
     startTransition(async () => {
-      setOptimistic({ id: entry.item.id, done: next })
+      setOptimistic({ id, done: next })
       try {
-        const result = await toggleCompleted(entry.item.id, next, date)
+        const result = await toggleCompleted(id, next, date)
         if (result.status === 'error') setError(result.message)
       } catch {
         setError('No se pudo marcar el ítem. Inténtalo de nuevo.')
+      } finally {
+        setPendingIds((ids) => ids.filter((pending) => pending !== id))
       }
     })
   }
@@ -106,8 +115,9 @@ export function TodayPanel({
                     type="checkbox"
                     checked={entry.done}
                     onChange={() => toggle(entry)}
+                    disabled={pendingIds.includes(entry.item.id)}
                     aria-label={`Marcar «${entry.item.title}» de las ${entry.item.start} como hecho`}
-                    className="size-4 accent-zinc-900 dark:accent-zinc-100"
+                    className="size-4 accent-zinc-900 disabled:opacity-50 dark:accent-zinc-100"
                   />
                 </label>
                 <span

@@ -186,6 +186,7 @@ describe('RoutineService: hoy y completado', () => {
       item.id,
       true,
       NOW,
+      null,
     )
 
     expect(result).toEqual({ ok: true, done: true })
@@ -198,8 +199,8 @@ describe('RoutineService: hoy y completado', () => {
     const { deps, marked } = mkDeps([item])
     const service = createRoutineService(deps)
 
-    await service.setCompleted(USER, item.id, true, NOW)
-    await service.setCompleted(USER, item.id, true, NOW)
+    await service.setCompleted(USER, item.id, true, NOW, null)
+    await service.setCompleted(USER, item.id, true, NOW, null)
 
     expect(marked.size).toBe(1)
   })
@@ -237,7 +238,7 @@ describe('RoutineService: hoy y completado', () => {
     const item = mkItem({ days: [0] })
     const { deps, calls } = mkDeps([item])
 
-    const result = await createRoutineService(deps).setCompleted(USER, item.id, true, NOW)
+    const result = await createRoutineService(deps).setCompleted(USER, item.id, true, NOW, null)
 
     expect(result).toMatchObject({ ok: false, reason: 'invalid' })
     expect(calls.markDone).toBe(0)
@@ -247,13 +248,23 @@ describe('RoutineService: hoy y completado', () => {
     const { deps, calls, zone } = mkDeps([])
     const service = createRoutineService(deps)
 
-    expect(await service.updateTimezone(USER, 'No/Existe')).toEqual({ ok: false })
+    expect(await service.updateTimezone(USER, 'No/Existe')).toEqual({
+      ok: false,
+      changed: false,
+    })
     expect(calls.setTimezone).toBe(0)
 
-    expect(await service.updateTimezone(USER, 'Europe/Madrid')).toEqual({ ok: true })
-    expect(calls.setTimezone).toBe(0) // ya era esa
+    // ya era esa: ok pero sin cambio, para que el llamador no revalide
+    expect(await service.updateTimezone(USER, 'Europe/Madrid')).toEqual({
+      ok: true,
+      changed: false,
+    })
+    expect(calls.setTimezone).toBe(0)
 
-    expect(await service.updateTimezone(USER, 'America/Mexico_City')).toEqual({ ok: true })
+    expect(await service.updateTimezone(USER, 'America/Mexico_City')).toEqual({
+      ok: true,
+      changed: true,
+    })
     expect(calls.setTimezone).toBe(1)
     expect(zone()).toBe('America/Mexico_City')
   })
@@ -267,6 +278,7 @@ describe('RoutineService: hoy y completado', () => {
       item.id,
       false,
       NOW,
+      null,
     )
 
     expect(result).toEqual({ ok: true, done: false })
@@ -282,6 +294,7 @@ describe('RoutineService: hoy y completado', () => {
       '00000000-0000-4000-8000-999999999999',
       true,
       NOW,
+      null,
     )
 
     expect(result).toMatchObject({ ok: false, reason: 'not_found' })
@@ -296,6 +309,7 @@ describe('RoutineService: hoy y completado', () => {
       'no-es-uuid',
       true,
       NOW,
+      null,
     )
 
     expect(result).toMatchObject({ ok: false, reason: 'invalid' })

@@ -28,13 +28,21 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
   const backdropMouseDown = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
 
   // El fondo pasa a inert en el mismo commit, así que el navegador ya ha
   // sacado el foco del botón que abrió esto: hay que llevarlo al diálogo a
-  // mano, o el lector de pantalla no anuncia nada.
+  // mano, o el lector de pantalla no anuncia nada. La devolución al cerrar la
+  // hace RoutineBoard, que sí conoce el disparador.
   useEffect(() => {
     dialogRef.current?.focus()
   }, [])
+
+  // Al pasar a «¿Borrar?» desaparece el botón que tenía el foco y este caería
+  // a body; se lleva al «Sí», que es la acción que el usuario venía a hacer.
+  useEffect(() => {
+    if (confirmingDelete != null) confirmRef.current?.focus()
+  }, [confirmingDelete])
 
   // El color heredado de la paleta antigua se ofrece como novena muestra: sin
   // esto, renombrar una categoría obligaría a cambiarle también el color.
@@ -143,6 +151,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                 <span className="flex items-center gap-1.5 text-sm">
                   <span className="text-zinc-600 dark:text-zinc-400">¿Borrar?</span>
                   <button
+                    ref={confirmRef}
                     type="button"
                     onClick={() => removeCategory(category.id)}
                     disabled={isPending}
@@ -224,7 +233,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
 
             <fieldset className="space-y-1">
               <legend className="text-sm text-zinc-700 dark:text-zinc-300">
-                Color <span className="text-zinc-400">(muestrario validado)</span>
+                Color <span className="text-zinc-500 dark:text-zinc-400">(muestrario validado)</span>
               </legend>
               <div className="flex flex-wrap gap-2">
                 {[

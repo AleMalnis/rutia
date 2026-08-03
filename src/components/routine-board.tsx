@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ItemFormDialog } from '@/components/item-form-dialog'
@@ -34,7 +34,24 @@ export function RoutineBoard({
   children?: React.ReactNode
 }) {
   const [dialog, setDialog] = useState<Dialog>(null)
-  const openItem = (item: RoutineItem | null) => setDialog({ type: 'item', item })
+
+  // El disparador se captura AQUÍ, en el clic: cuando el diálogo monta, el
+  // fondo ya es inert y el navegador ha movido el foco a body, así que un
+  // efecto dentro del diálogo solo podría guardar body y la restauración no
+  // devolvería al usuario a su sitio.
+  const trigger = useRef<HTMLElement | null>(null)
+
+  function open(next: NonNullable<Dialog>) {
+    trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setDialog(next)
+  }
+
+  function close() {
+    setDialog(null)
+    trigger.current?.focus()
+  }
+
+  const openItem = (item: RoutineItem | null) => open({ type: 'item', item })
 
   return (
     <>
@@ -49,7 +66,7 @@ export function RoutineBoard({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <button
               type="button"
-              onClick={() => setDialog({ type: 'categories' })}
+              onClick={() => open({ type: 'categories' })}
               className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
             >
               Categorías
@@ -98,12 +115,12 @@ export function RoutineBoard({
           key={dialog.item?.id ?? 'nuevo'}
           item={dialog.item}
           categories={categories}
-          onClose={() => setDialog(null)}
+          onClose={close}
         />
       )}
 
       {dialog?.type === 'categories' && (
-        <CategoryManagerDialog categories={categories} onClose={() => setDialog(null)} />
+        <CategoryManagerDialog categories={categories} onClose={close} />
       )}
     </>
   )
