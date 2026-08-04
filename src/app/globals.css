@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Marcas de color de categoría: cada elemento define inline sus variantes
+   --cat-light/--cat-dark (los estilos inline no pueden reaccionar al modo;
+   estas reglas sí) y pinta con var(--cat). */
+.cat-mark {
+  --cat: var(--cat-light);
+}
+@media (prefers-color-scheme: dark) {
+  .cat-mark {
+    --cat: var(--cat-dark);
+  }
+}

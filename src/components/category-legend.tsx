@@ -1,3 +1,4 @@
+import { categoryColorStyle } from '@/lib/category-colors'
 import type { Category } from '@/lib/schemas'
 
 // Leyenda de colores por categoría (spec §4).
@@ -5,7 +6,7 @@ export function CategoryLegend({ categories }: { categories: Category[] }) {
   if (categories.length === 0) return null
 
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+    <ul role="list" className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
       {categories.map((category) => (
         <li
           key={category.id}
@@ -13,8 +14,8 @@ export function CategoryLegend({ categories }: { categories: Category[] }) {
         >
           <span
             aria-hidden
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: category.color }}
+            className="cat-mark h-2.5 w-2.5 rounded-full"
+            style={{ ...categoryColorStyle(category.color), backgroundColor: 'var(--cat)' }}
           />
           {category.name}
         </li>

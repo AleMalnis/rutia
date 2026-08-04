@@ -33,13 +33,8 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
     if (state?.status === 'ok') onClose()
   }, [state, onClose])
 
-  // Devuelve el foco a donde estaba (la tarjeta del calendario o el botón).
-  useEffect(() => {
-    const previous = document.activeElement
-    return () => {
-      if (previous instanceof HTMLElement) previous.focus()
-    }
-  }, [])
+  // La devolución del foco al cerrar la gestiona RoutineBoard: captura el
+  // disparador en el clic, antes de que el `inert` del fondo mueva el foco.
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -208,7 +203,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
 
           <label className="block space-y-1">
             <span className="text-sm text-zinc-700 dark:text-zinc-300">
-              Detalle <span className="text-zinc-400">(opcional)</span>
+              Detalle <span className="text-zinc-500 dark:text-zinc-400">(opcional)</span>
             </span>
             <input
               name="detail"

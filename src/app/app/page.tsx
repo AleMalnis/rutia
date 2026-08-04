@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 import { RoutineBoard } from '@/components/routine-board'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
+import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
+import { createProfilesRepo } from '@/repositories/profiles.repo'
 import { createRoutineService } from '@/services/routine.service'
 import { logout } from './actions'
 
@@ -21,18 +23,29 @@ export default async function AppPage() {
   const userId = data.claims.sub
   const email = typeof data.claims.email === 'string' ? data.claims.email : 'usuario'
 
-  const routineService = createRoutineService(createItemsRepo(supabase))
-  const categoriesRepo = createCategoriesRepo(supabase)
-  const [{ items }, categories] = await Promise.all([
+  const routineService = createRoutineService({
+    items: createItemsRepo(supabase),
+    completions: createCompletionsRepo(supabase),
+    profiles: createProfilesRepo(supabase),
+    categories: createCategoriesRepo(supabase),
+  })
+  const [{ items }, categories, today] = await Promise.all([
     routineService.listItems(userId),
-    categoriesRepo.listByUser(userId),
+    routineService.listCategories(userId),
+    routineService.listToday(userId, new Date()),
   ])
 
   return (
     <main className="flex flex-1 flex-col gap-4 bg-zinc-50 p-4 dark:bg-black">
       {/* la cabecera va dentro del tablero para quedar cubierta por su
           `inert` mientras el diálogo de edición está abierto */}
-      <RoutineBoard items={items} categories={categories}>
+      <RoutineBoard
+        items={items}
+        categories={categories}
+        todayEntries={today.entries}
+        todayWeekday={today.weekday}
+        todayDate={today.date}
+      >
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">RutIA</h1>

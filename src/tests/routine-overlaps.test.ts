@@ -5,7 +5,42 @@ import {
   findBlockOverlaps,
   type BlockCandidate,
 } from '@/services/routine.service'
+import type { CategoriesRepo } from '@/repositories/categories.repo'
+import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
+import type { ProfilesRepo } from '@/repositories/profiles.repo'
+
+// Los tests de este archivo no tocan completions ni el perfil: stubs inertes.
+function deps(items: ItemsRepo) {
+  const completions: CompletionsRepo = {
+    async listItemIdsByDate() {
+      return []
+    },
+    async markDone() {},
+    async markUndone() {},
+  }
+  const profiles: ProfilesRepo = {
+    async getTimezone() {
+      return 'Europe/Madrid'
+    },
+    async setTimezone() {},
+  }
+  const categories: CategoriesRepo = {
+    async listByUser() {
+      return []
+    },
+    async insert() {
+      throw new Error('no usado')
+    },
+    async update() {
+      return null
+    },
+    async deleteById() {
+      return 0
+    },
+  }
+  return { items, completions, profiles, categories }
+}
 
 let seq = 0
 function mkItem(partial: Partial<RoutineItem>): RoutineItem {
@@ -157,7 +192,7 @@ describe('RoutineService con repo en memoria', () => {
 
   it('createItem crea un bloque válido que no choca (camino feliz)', async () => {
     const { repo, calls } = mkRepo([block([0], '19:00', '20:30')])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: 'Estudio',
@@ -173,7 +208,7 @@ describe('RoutineService con repo en memoria', () => {
 
   it("createItem acepta un bloque que termina a medianoche exacta ('24:00')", async () => {
     const { repo, calls } = mkRepo([])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: 'Lectura',
@@ -190,7 +225,7 @@ describe('RoutineService con repo en memoria', () => {
   it('createItem devuelve el conflicto y NO escribe', async () => {
     const existing = block([0], '19:00', '20:30', { title: 'Gimnasio' })
     const { repo, calls } = mkRepo([existing])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: 'Inglés',
@@ -209,7 +244,7 @@ describe('RoutineService con repo en memoria', () => {
 
   it('createItem crea un reminder aunque caiga dentro de un bloque', async () => {
     const { repo, calls } = mkRepo([block([0], '09:00', '17:00')])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: 'Medicación',
@@ -225,7 +260,7 @@ describe('RoutineService con repo en memoria', () => {
 
   it('createItem rechaza un bloque sin hora de fin sin tocar el repo', async () => {
     const { repo, calls } = mkRepo([])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: 'Trabajo',
@@ -242,7 +277,7 @@ describe('RoutineService con repo en memoria', () => {
     const self = block([3], '10:00', '11:00', { title: 'Inglés' })
     const other = block([3], '19:00', '20:30', { title: 'Gimnasio' })
     const { repo, calls } = mkRepo([self, other])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const noConflict = await service.updateItem(USER, self.id, { start: '10:30', end: '11:30' })
     expect(noConflict.ok).toBe(true)
@@ -255,7 +290,7 @@ describe('RoutineService con repo en memoria', () => {
   it('updateItem a reminder anula la hora de fin automáticamente', async () => {
     const self = block([0], '09:00', '10:00')
     const { repo } = mkRepo([self])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.updateItem(USER, self.id, { kind: 'reminder' })
     expect(result.ok).toBe(true)
@@ -266,7 +301,7 @@ describe('RoutineService con repo en memoria', () => {
 
   it('updateItem devuelve not_found para un id inexistente sin escribir', async () => {
     const { repo, calls } = mkRepo([block([0], '09:00', '10:00')])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.updateItem(USER, '00000000-0000-4000-8000-999999999999', {
       title: 'Nada',
@@ -284,7 +319,7 @@ describe('RoutineService con repo en memoria', () => {
         '23503',
       )
     }
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: 'Con categoría ajena',
@@ -306,7 +341,7 @@ describe('RoutineService con repo en memoria', () => {
     repo.insert = async () => {
       throw new RepoError('connection lost', '08006')
     }
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     await expect(
       service.createItem(USER, { title: 'X', kind: 'reminder', days: [0], start: '09:00' }),
@@ -321,7 +356,7 @@ describe('RoutineService con repo en memoria', () => {
         '23503',
       )
     }
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     await expect(
       service.createItem(USER, { title: 'X', kind: 'reminder', days: [0], start: '09:00' }),
@@ -332,7 +367,7 @@ describe('RoutineService con repo en memoria', () => {
     const self = block([0], '09:00', '10:00')
     const { repo } = mkRepo([self])
     repo.update = async () => null
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.updateItem(USER, self.id, { title: 'Renombrado' })
     expect(result).toMatchObject({ ok: false, reason: 'not_found' })
@@ -341,7 +376,7 @@ describe('RoutineService con repo en memoria', () => {
   it('updateItem rechaza un parche vacío sin escribir', async () => {
     const self = block([0], '09:00', '10:00')
     const { repo, calls } = mkRepo([self])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.updateItem(USER, self.id, {})
     expect(result).toMatchObject({ ok: false, reason: 'invalid' })
@@ -355,7 +390,7 @@ describe('RoutineService con repo en memoria', () => {
       deleteCalls += 1
       return 0
     }
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     expect(await service.deleteItems(USER, ['no-es-uuid'])).toMatchObject({
       ok: false,
@@ -368,7 +403,7 @@ describe('RoutineService con repo en memoria', () => {
   it('deleteItems borra los existentes e informa del conteo real', async () => {
     const a = block([0], '09:00', '10:00')
     const { repo } = mkRepo([a])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.deleteItems(USER, [
       a.id,
@@ -379,7 +414,7 @@ describe('RoutineService con repo en memoria', () => {
 
   it('el NUL (U+0000) en title se rechaza en la frontera Zod', async () => {
     const { repo, calls } = mkRepo([])
-    const service = createRoutineService(repo)
+    const service = createRoutineService(deps(repo))
 
     const result = await service.createItem(USER, {
       title: `a${String.fromCharCode(0)}b`,

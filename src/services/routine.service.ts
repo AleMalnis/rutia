@@ -1,12 +1,19 @@
 import { z } from 'zod'
 import {
+  categoryInputSchema,
+  categoryUpdateSchema,
   createRoutineItemSchema,
   routineItemDataSchema,
   updateRoutineItemSchema,
+  type Category,
   type CreateRoutineItemInput,
   type RoutineItem,
 } from '@/lib/schemas'
+import { isValidTimezone, itemsForDay, todayInTimezone } from '@/lib/today'
+import type { CategoriesRepo } from '@/repositories/categories.repo'
+import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
+import type { ProfilesRepo } from '@/repositories/profiles.repo'
 
 // RoutineService (spec §7.2): toda la lógica de la rutina vive aquí. Los
 // server actions y las futuras herramientas del agente llaman a este servicio;
@@ -78,6 +85,15 @@ export type ItemResult = { ok: true; item: RoutineItem } | ServiceFailure
 export type ListResult = { ok: true; items: RoutineItem[] }
 export type DeleteResult = { ok: true; deleted: number } | ServiceFailure
 
+/** Un ítem de hoy con su estado de completado (spec §4, panel «Hoy»). */
+export type TodayEntry = { item: RoutineItem; done: boolean }
+export type TodayResult = { ok: true; date: string; weekday: number; entries: TodayEntry[] }
+export type CompletedResult =
+  | { ok: true; done: boolean }
+  | ServiceFailure
+  // el panel que el usuario tiene delante es de otro día: no se escribe
+  | { ok: false; reason: 'stale'; message: string }
+
 const idSchema = z.uuid('El id del ítem debe ser un UUID.')
 const idsSchema = z
   .array(idSchema, 'Se espera un array de ids.')
@@ -107,10 +123,179 @@ function categoryFkFailure(error: unknown): ServiceFailure | null {
 // parcial. Debe validar todo el lote, comprobar solapes contra lo existente y
 // entre los propios ítems del lote (findBlockOverlaps), y solo entonces
 // insertar en una única llamada.
-export function createRoutineService(itemsRepo: ItemsRepo) {
+export type CategoryResult = { ok: true; category: Category } | ServiceFailure
+
+export type RoutineDeps = {
+  items: ItemsRepo
+  completions: CompletionsRepo
+  profiles: ProfilesRepo
+  categories: CategoriesRepo
+}
+
+// unique(user_id, name) en BD: el duplicado llega como 23505
+function duplicateCategoryFailure(error: unknown): ServiceFailure | null {
+  if (error instanceof RepoError && error.code === '23505') {
+    return { ok: false, reason: 'invalid', message: 'Ya existe una categoría con ese nombre.' }
+  }
+  return null
+}
+
+export function createRoutineService({
+  items: itemsRepo,
+  completions: completionsRepo,
+  profiles: profilesRepo,
+  categories: categoriesRepo,
+}: RoutineDeps) {
   return {
     async listItems(userId: string): Promise<ListResult> {
       return { ok: true, items: await itemsRepo.listByUser(userId) }
+    },
+
+    /**
+     * Lo que toca hoy, en orden, con su check. La zona horaria se resuelve
+     * aquí desde el perfil: es lógica de dominio (spec §7.2) y así las dos
+     * puertas —web y, más adelante, el agente— ven siempre el mismo «hoy».
+     */
+    async listToday(userId: string, now: Date): Promise<TodayResult> {
+      const timeZone = await profilesRepo.getTimezone(userId)
+      const { date, weekday } = todayInTimezone(now, timeZone)
+      const [all, doneIds] = await Promise.all([
+        itemsRepo.listByUser(userId),
+        completionsRepo.listItemIdsByDate(userId, date),
+      ])
+      const done = new Set(doneIds)
+      const entries = itemsForDay(all, weekday).map((item) => ({
+        item,
+        done: done.has(item.id),
+      }))
+      return { ok: true, date, weekday, entries }
+    },
+
+    /**
+     * Marca o desmarca un ítem como hecho HOY. Idempotente en ambos sentidos.
+     * `expectedDate` es la fecha para la que se pintó el panel del usuario: si
+     * el día ha cambiado mientras la pestaña estaba abierta, no se escribe
+     * nada (marcar la medicación de ayer en la fecha de hoy sería peor que no
+     * marcarla). Es obligatorio y explícito: con `null` se renuncia a esa
+     * comprobación a sabiendas (el agente actúa sobre el estado del servidor,
+     * no sobre una vista que pueda estar caducada), y así nadie se la salta por
+     * olvidarse de pasar el parámetro.
+     */
+    async setCompleted(
+      userId: string,
+      itemId: unknown,
+      done: boolean,
+      now: Date,
+      expectedDate: string | null,
+    ): Promise<CompletedResult> {
+      const parsedId = idSchema.safeParse(itemId)
+      if (!parsedId.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsedId.error) }
+      }
+
+      const timeZone = await profilesRepo.getTimezone(userId)
+      const { date, weekday } = todayInTimezone(now, timeZone)
+      if (expectedDate != null && expectedDate !== date) {
+        return {
+          ok: false,
+          reason: 'stale',
+          message: 'El día ha cambiado; se ha actualizado tu panel.',
+        }
+      }
+
+      // sin esta comprobación, la FK dejaría marcar un ítem ajeno cuyo id se
+      // conozca: las claves foráneas no pasan por la RLS
+      const item = await itemsRepo.getById(userId, parsedId.data)
+      if (item == null) {
+        return { ok: false, reason: 'not_found', message: 'El ítem no existe.' }
+      }
+
+      // un check sobre un día en el que el ítem no toca no lo mostraría nunca
+      // ningún panel: quedaría como fila huérfana imposible de desmarcar
+      if (!item.days.includes(weekday)) {
+        return { ok: false, reason: 'invalid', message: 'Ese ítem no toca hoy.' }
+      }
+
+      if (done) {
+        await completionsRepo.markDone(userId, parsedId.data, date)
+      } else {
+        await completionsRepo.markUndone(userId, parsedId.data, date)
+      }
+      return { ok: true, done }
+    },
+
+    async listCategories(userId: string): Promise<Category[]> {
+      return categoriesRepo.listByUser(userId)
+    },
+
+    async createCategory(userId: string, input: unknown): Promise<CategoryResult> {
+      const parsed = categoryInputSchema.safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      try {
+        return { ok: true, category: await categoriesRepo.insert(userId, parsed.data) }
+      } catch (error) {
+        const failure = duplicateCategoryFailure(error)
+        if (failure) return failure
+        throw error
+      }
+    },
+
+    async updateCategory(userId: string, categoryId: unknown, input: unknown): Promise<CategoryResult> {
+      const parsedId = idSchema.safeParse(categoryId)
+      if (!parsedId.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsedId.error) }
+      }
+
+      // se admite conservar el color actual aunque sea heredado (ver schema)
+      const current = (await categoriesRepo.listByUser(userId)).find(
+        (category) => category.id === parsedId.data,
+      )
+      if (current == null) {
+        return { ok: false, reason: 'not_found', message: 'La categoría no existe.' }
+      }
+
+      const parsed = categoryUpdateSchema(current.color).safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      try {
+        const category = await categoriesRepo.update(userId, parsedId.data, parsed.data)
+        if (category == null) {
+          return { ok: false, reason: 'not_found', message: 'La categoría no existe.' }
+        }
+        return { ok: true, category }
+      } catch (error) {
+        const failure = duplicateCategoryFailure(error)
+        if (failure) return failure
+        throw error
+      }
+    },
+
+    /** Los ítems de la categoría borrada quedan «sin categoría». */
+    async deleteCategory(userId: string, categoryId: unknown): Promise<DeleteResult> {
+      const parsedId = idSchema.safeParse(categoryId)
+      if (!parsedId.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsedId.error) }
+      }
+      return { ok: true, deleted: await categoriesRepo.deleteById(userId, parsedId.data) }
+    },
+
+    /**
+     * Guarda la zona horaria real del navegador (spec §5: profiles.timezone).
+     * `changed` distingue «guardado» de «ya era esa», para que el llamador no
+     * invalide la caché en cada montaje del panel.
+     */
+    async updateTimezone(
+      userId: string,
+      timezone: unknown,
+    ): Promise<{ ok: boolean; changed: boolean }> {
+      if (!isValidTimezone(timezone)) return { ok: false, changed: false }
+      const current = await profilesRepo.getTimezone(userId)
+      if (current === timezone) return { ok: true, changed: false }
+      await profilesRepo.setTimezone(userId, timezone)
+      return { ok: true, changed: true }
     },
 
     async createItem(userId: string, input: unknown): Promise<ItemResult> {
