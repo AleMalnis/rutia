@@ -24,6 +24,10 @@ function deps(items: ItemsRepo) {
       return 'Europe/Madrid'
     },
     async setTimezone() {},
+    async getPreferences() {
+      return {}
+    },
+    async setPreference() {},
   }
   const categories: CategoriesRepo = {
     async listByUser() {

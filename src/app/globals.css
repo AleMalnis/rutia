@@ -1,8 +1,35 @@
 @import "tailwindcss";
 
+/* La variante dark: deja de depender solo del sistema. Manda el data-mode que
+   el servidor estampa desde profiles.preferences ('light' | 'dark' | 'auto');
+   sin atributo (login, registro, home) se comporta como hasta ahora. */
+@custom-variant dark {
+  &:where([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-mode="light"], [data-mode="light"] *)) {
+      @slot;
+    }
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Tokens de tema (preset zinc claro como base). Cada [data-theme] los
+     redefine; todos los valores pasaron el verificador de contraste
+     (tinta >=4.5:1 sobre tarjeta y página; acento >=3:1 sobre ambas). */
+  --page: #fafafa;
+  --card: #ffffff;
+  --edge: #e4e4e7;
+  --ink: #18181b;
+  --ink-2: #3f3f46;
+  --ink-3: #71717a;
+  --accent: #18181b;
+  --accent-ink: #fafafa;
+  --font-app: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 @theme inline {
@@ -10,6 +37,17 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* utilidades semánticas: bg-page, bg-card, border-edge, text-ink,
+     text-ink-2, text-ink-3, bg-accent, text-accent-ink, accent-accent… */
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-edge: var(--edge);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +55,187 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+/* color-scheme: sin esto los widgets nativos (icono del selector de hora,
+   popup del select, scrollbars) seguirían el esquema del sistema aunque el
+   usuario fuerce el modo contrario. */
+[data-mode="light"] {
+  color-scheme: light;
+}
+[data-mode="dark"] {
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  [data-mode="auto"] {
+    color-scheme: dark;
+  }
+}
+
+/* ── Temas (bloques claros) ─────────────────────────────────────────────────── */
+
+[data-theme="pizarra"] {
+  --page: #f3f6f9;
+  --card: #ffffff;
+  --edge: #dbe3ec;
+  --ink: #131c26;
+  --ink-2: #3b4a5c;
+  --ink-3: #5c718a;
+  --accent: #1c5cab;
+  --accent-ink: #ffffff;
+}
+[data-theme="arena"] {
+  --page: #faf6ef;
+  --card: #fffdf8;
+  --edge: #e8dfd0;
+  --ink: #251f14;
+  --ink-2: #544a38;
+  --ink-3: #78694f;
+  --accent: #8a5310;
+  --accent-ink: #ffffff;
+}
+[data-theme="bosque"] {
+  --page: #f2f7f3;
+  --card: #fdfffd;
+  --edge: #d7e4da;
+  --ink: #122019;
+  --ink-2: #3b4f44;
+  --ink-3: #587264;
+  --accent: #116b3f;
+  --accent-ink: #ffffff;
+}
+[data-theme="uva"] {
+  --page: #f7f5fb;
+  --card: #ffffff;
+  --edge: #e3ddf0;
+  --ink: #1d1730;
+  --ink-2: #4a4160;
+  --ink-3: #6d6390;
+  --accent: #4a3aa7;
+  --accent-ink: #ffffff;
+}
+
+/* ── Temas (bloques oscuros): modo 'dark' explícito ─────────────────────────── */
+
+[data-mode="dark"][data-theme="zinc"] {
+  --page: #09090b;
+  --card: #141417;
+  --edge: #2c2c30;
+  --ink: #fafafa;
+  --ink-2: #d4d4d8;
+  --ink-3: #a1a1aa;
+  --accent: #e4e4e7;
+  --accent-ink: #18181b;
+}
+[data-mode="dark"][data-theme="pizarra"] {
+  --page: #0b1220;
+  --card: #151e2e;
+  --edge: #2b3750;
+  --ink: #f1f5f9;
+  --ink-2: #c7d2de;
+  --ink-3: #94a7bd;
+  --accent: #3987e5;
+  --accent-ink: #06101f;
+}
+[data-mode="dark"][data-theme="arena"] {
+  --page: #151210;
+  --card: #1e1a15;
+  --edge: #383126;
+  --ink: #f5f0e8;
+  --ink-2: #d8cfc0;
+  --ink-3: #ab9f8b;
+  --accent: #d99b2b;
+  --accent-ink: #201505;
+}
+[data-mode="dark"][data-theme="bosque"] {
+  --page: #0c1210;
+  --card: #151d18;
+  --edge: #2a382f;
+  --ink: #eef4f0;
+  --ink-2: #c6d4cc;
+  --ink-3: #96aa9e;
+  --accent: #3db47c;
+  --accent-ink: #06130c;
+}
+[data-mode="dark"][data-theme="uva"] {
+  --page: #120f1c;
+  --card: #1b1729;
+  --edge: #332c4a;
+  --ink: #f2f0f9;
+  --ink-2: #cfc9e2;
+  --ink-3: #a49bc4;
+  --accent: #9d93ec;
+  --accent-ink: #17122e;
+}
+
+/* ── Temas (bloques oscuros): modo 'auto' con el sistema en oscuro ──────────── */
+
+@media (prefers-color-scheme: dark) {
+  [data-mode="auto"][data-theme="zinc"] {
+    --page: #09090b;
+    --card: #141417;
+    --edge: #2c2c30;
+    --ink: #fafafa;
+    --ink-2: #d4d4d8;
+    --ink-3: #a1a1aa;
+    --accent: #e4e4e7;
+    --accent-ink: #18181b;
+  }
+  [data-mode="auto"][data-theme="pizarra"] {
+    --page: #0b1220;
+    --card: #151e2e;
+    --edge: #2b3750;
+    --ink: #f1f5f9;
+    --ink-2: #c7d2de;
+    --ink-3: #94a7bd;
+    --accent: #3987e5;
+    --accent-ink: #06101f;
+  }
+  [data-mode="auto"][data-theme="arena"] {
+    --page: #151210;
+    --card: #1e1a15;
+    --edge: #383126;
+    --ink: #f5f0e8;
+    --ink-2: #d8cfc0;
+    --ink-3: #ab9f8b;
+    --accent: #d99b2b;
+    --accent-ink: #201505;
+  }
+  [data-mode="auto"][data-theme="bosque"] {
+    --page: #0c1210;
+    --card: #151d18;
+    --edge: #2a382f;
+    --ink: #eef4f0;
+    --ink-2: #c6d4cc;
+    --ink-3: #96aa9e;
+    --accent: #3db47c;
+    --accent-ink: #06130c;
+  }
+  [data-mode="auto"][data-theme="uva"] {
+    --page: #120f1c;
+    --card: #1b1729;
+    --edge: #332c4a;
+    --ink: #f2f0f9;
+    --ink-2: #cfc9e2;
+    --ink-3: #a49bc4;
+    --accent: #9d93ec;
+    --accent-ink: #17122e;
+  }
+}
+
+/* ── Fuentes (autoalojadas vía next/font) ───────────────────────────────────── */
+
+[data-font="system"] {
+  --font-app: var(--font-geist-sans), system-ui, sans-serif;
+}
+[data-font="serif"] {
+  --font-app: var(--font-lora), Georgia, serif;
+}
+[data-font="rounded"] {
+  --font-app: var(--font-nunito), var(--font-geist-sans), sans-serif;
+}
+[data-font] {
+  font-family: var(--font-app);
 }
 
 body {
@@ -27,12 +246,16 @@ body {
 
 /* Marcas de color de categoría: cada elemento define inline sus variantes
    --cat-light/--cat-dark (los estilos inline no pueden reaccionar al modo;
-   estas reglas sí) y pinta con var(--cat). */
+   estas reglas sí) y pinta con var(--cat). Las marcas solo se renderizan
+   dentro del wrapper de /app, que siempre lleva data-mode. */
 .cat-mark {
   --cat: var(--cat-light);
 }
+[data-mode="dark"] .cat-mark {
+  --cat: var(--cat-dark);
+}
 @media (prefers-color-scheme: dark) {
-  .cat-mark {
+  [data-mode="auto"] .cat-mark {
     --cat: var(--cat-dark);
   }
 }

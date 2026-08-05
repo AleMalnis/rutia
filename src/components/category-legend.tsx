@@ -10,7 +10,7 @@ export function CategoryLegend({ categories }: { categories: Category[] }) {
       {categories.map((category) => (
         <li
           key={category.id}
-          className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400"
+          className="flex items-center gap-1.5 text-xs text-ink-2"
         >
           <span
             aria-hidden

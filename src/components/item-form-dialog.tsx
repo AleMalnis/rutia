@@ -12,10 +12,10 @@ type Props = {
 }
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50'
+  'w-full rounded-md border border-edge bg-card px-2 py-1.5 text-sm text-ink'
 
 const DAY_CLASS =
-  'flex cursor-pointer items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-sm text-zinc-800 has-checked:border-zinc-900 has-checked:bg-zinc-900 has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-zinc-900 dark:border-zinc-700 dark:text-zinc-200 dark:has-checked:border-zinc-100 dark:has-checked:bg-zinc-100 dark:has-checked:text-zinc-900 dark:has-focus-visible:outline-zinc-100'
+  'flex cursor-pointer items-center gap-1 rounded-md border border-edge px-2 py-1 text-sm text-ink has-checked:border-accent has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent'
 
 export function ItemFormDialog({ item, categories, onClose }: Props) {
   const [state, formAction] = useActionState<ItemFormState, FormData>(saveItem, null)
@@ -93,11 +93,11 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-dialogo"
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
+        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl border border-edge bg-card p-4 shadow-lg"
       >
         <h2
           id="titulo-dialogo"
-          className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-50"
+          className="mb-3 text-base font-semibold text-ink"
         >
           {item ? 'Editar ítem' : 'Nuevo ítem'}
         </h2>
@@ -106,7 +106,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
           {item && <input type="hidden" name="itemId" value={item.id} />}
 
           <label className="block space-y-1">
-            <span className="text-sm text-zinc-700 dark:text-zinc-300">Título</span>
+            <span className="text-sm text-ink-2">Título</span>
             <input
               name="title"
               type="text"
@@ -119,8 +119,8 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
           </label>
 
           <fieldset className="space-y-1">
-            <legend className="text-sm text-zinc-700 dark:text-zinc-300">Tipo</legend>
-            <div className="flex gap-4 text-sm text-zinc-800 dark:text-zinc-200">
+            <legend className="text-sm text-ink-2">Tipo</legend>
+            <div className="flex gap-4 text-sm text-ink">
               <label className="flex items-center gap-1.5">
                 <input
                   type="radio"
@@ -128,6 +128,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
                   value="block"
                   checked={kind === 'block'}
                   onChange={() => setKind('block')}
+                  className="accent-accent"
                 />
                 Bloque
               </label>
@@ -138,6 +139,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
                   value="reminder"
                   checked={kind === 'reminder'}
                   onChange={() => setKind('reminder')}
+                  className="accent-accent"
                 />
                 Recordatorio
               </label>
@@ -145,7 +147,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
           </fieldset>
 
           <fieldset className="space-y-1">
-            <legend className="text-sm text-zinc-700 dark:text-zinc-300">Días</legend>
+            <legend className="text-sm text-ink-2">Días</legend>
             <div className="flex flex-wrap gap-1.5">
               {DAY_SHORT.map((short, day) => (
                 <label key={day} className={DAY_CLASS}>
@@ -165,7 +167,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
 
           <div className="flex gap-3">
             <label className="block flex-1 space-y-1">
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">Inicio</span>
+              <span className="text-sm text-ink-2">Inicio</span>
               <input
                 name="start"
                 type="time"
@@ -178,7 +180,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
                 tecleado. `required` solo cuando es visible, o el navegador
                 bloquearía el envío sobre un campo que no puede enfocar. */}
             <label className={`block flex-1 space-y-1 ${kind === 'block' ? '' : 'hidden'}`}>
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">Fin</span>
+              <span className="text-sm text-ink-2">Fin</span>
               <input
                 name="end"
                 type="time"
@@ -190,7 +192,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
           </div>
 
           <label className="block space-y-1">
-            <span className="text-sm text-zinc-700 dark:text-zinc-300">Categoría</span>
+            <span className="text-sm text-ink-2">Categoría</span>
             <select name="categoryId" defaultValue={item?.categoryId ?? ''} className={INPUT_CLASS}>
               <option value="">Sin categoría</option>
               {categories.map((category) => (
@@ -202,8 +204,8 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
           </label>
 
           <label className="block space-y-1">
-            <span className="text-sm text-zinc-700 dark:text-zinc-300">
-              Detalle <span className="text-zinc-500 dark:text-zinc-400">(opcional)</span>
+            <span className="text-sm text-ink-2">
+              Detalle <span className="text-ink-3">(opcional)</span>
             </span>
             <input
               name="detail"
@@ -258,7 +260,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
             )}
             {item && confirmingDelete && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-zinc-700 dark:text-zinc-300">¿Seguro?</span>
+                <span className="text-ink-2">¿Seguro?</span>
                 <button
                   type="button"
                   onClick={handleDelete}
@@ -271,7 +273,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
                   type="button"
                   onClick={() => setConfirmingDelete(false)}
                   disabled={busy}
-                  className="rounded-md px-2 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  className="rounded-md px-2 py-1 text-ink-2 hover:bg-edge/40 disabled:opacity-50"
                 >
                   No
                 </button>
@@ -283,14 +285,14 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-ink hover:bg-edge/40 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:opacity-85 disabled:opacity-50"
               >
                 {isSubmitting ? 'Guardando…' : 'Guardar'}
               </button>

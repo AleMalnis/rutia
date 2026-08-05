@@ -29,14 +29,22 @@ export default async function AppPage() {
     profiles: createProfilesRepo(supabase),
     categories: createCategoriesRepo(supabase),
   })
-  const [{ items }, categories, today] = await Promise.all([
+  const [{ items }, categories, today, appearance] = await Promise.all([
     routineService.listItems(userId),
     routineService.listCategories(userId),
     routineService.listToday(userId, new Date()),
+    routineService.getAppearance(userId),
   ])
 
   return (
-    <main className="flex flex-1 flex-col gap-4 bg-zinc-50 p-4 dark:bg-black">
+    // Los data-attrs activan el tema, el modo y la fuente elegidos (spec §4):
+    // el CSS de globals.css resuelve los tokens a partir de ellos, sin JS.
+    <main
+      data-theme={appearance.theme}
+      data-mode={appearance.mode}
+      data-font={appearance.font}
+      className="flex flex-1 flex-col gap-4 bg-page p-4 text-ink"
+    >
       {/* la cabecera va dentro del tablero para quedar cubierta por su
           `inert` mientras el diálogo de edición está abierto */}
       <RoutineBoard
@@ -45,16 +53,17 @@ export default async function AppPage() {
         todayEntries={today.entries}
         todayWeekday={today.weekday}
         todayDate={today.date}
+        appearance={appearance}
       >
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">RutIA</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
+            <h1 className="text-lg font-semibold text-ink">RutIA</h1>
+            <p className="text-sm text-ink-3">{email}</p>
           </div>
           <form action={logout}>
             <button
               type="submit"
-              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
             >
               Cerrar sesión
             </button>
