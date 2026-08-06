@@ -4,7 +4,7 @@ import {
   DAY_START_MIN,
   GRID_HEIGHT_PX,
   HOUR_PX,
-  reminderCenters,
+  reminderBottoms,
   timeToMinutes,
 } from '@/lib/calendar'
 
@@ -57,33 +57,40 @@ describe('blockGeometry', () => {
   })
 })
 
-describe('reminderCenters', () => {
-  it('ancla cada chip al centro de su hora', () => {
-    expect(reminderCenters(['09:00', '21:00'])).toEqual([3 * HOUR_PX, 15 * HOUR_PX])
+describe('reminderBottoms', () => {
+  it('cada chip se apoya sobre su línea de hora (el borde inferior ES la línea)', () => {
+    // así el chip vive ENCIMA de la línea y no pisa el título de un bloque
+    // que empiece a esa misma hora
+    expect(reminderBottoms(['09:00', '21:00'])).toEqual([3 * HOUR_PX, 15 * HOUR_PX])
   })
 
   it('un recordatorio antes de las 06:00 se fija al borde, no se oculta', () => {
-    expect(reminderCenters(['05:00'])).toEqual([10])
+    // clampeado para que el chip entero (20 px) quepa en la rejilla
+    expect(reminderBottoms(['05:00'])).toEqual([20])
   })
 
-  it('dos chips a la misma hora se apilan en vez de taparse', () => {
-    const [first, second] = reminderCenters(['09:00', '09:00'])
-    expect(first).toBe(3 * HOUR_PX)
+  it('dos chips a la misma hora se apilan hacia arriba, el último pegado a la línea', () => {
+    const [first, second] = reminderBottoms(['09:00', '09:00'])
+    expect(second).toBe(3 * HOUR_PX)
     expect(second - first).toBeGreaterThanOrEqual(20)
   })
 
   it('chips a horas cercanas (menos de un chip de separación) también se apilan', () => {
-    const [first, second] = reminderCenters(['09:00', '09:15'])
+    const [first, second] = reminderBottoms(['09:00', '09:15'])
     expect(second - first).toBeGreaterThanOrEqual(20)
   })
 
-  it('chips a horas distantes no se tocan entre sí', () => {
-    expect(reminderCenters(['09:00', '10:00'])).toEqual([3 * HOUR_PX, 4 * HOUR_PX])
+  it('chips a horas distantes se quedan cada uno en su línea', () => {
+    expect(reminderBottoms(['09:00', '10:00'])).toEqual([3 * HOUR_PX, 4 * HOUR_PX])
   })
 
-  it('un chip pegado a medianoche no desborda la rejilla', () => {
-    const [center] = reminderCenters(['23:55'])
-    expect(center + 10).toBeLessThanOrEqual(GRID_HEIGHT_PX)
+  it('ningún chip desborda la rejilla por abajo ni por arriba', () => {
+    const [nocturno] = reminderBottoms(['23:59'])
+    expect(nocturno).toBeLessThanOrEqual(GRID_HEIGHT_PX)
+    const madrugadores = reminderBottoms(['06:00', '06:00', '06:00'])
+    for (const bottom of madrugadores) {
+      expect(bottom).toBeGreaterThanOrEqual(20)
+    }
   })
 
   it('la constante DAY_START_MIN es 06:00', () => {

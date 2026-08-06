@@ -6,7 +6,7 @@ import {
   DAY_NAMES,
   GRID_HEIGHT_PX,
   HOUR_PX,
-  reminderCenters,
+  reminderBottoms,
 } from '@/lib/calendar'
 import { categoryColorStyle } from '@/lib/category-colors'
 
@@ -66,7 +66,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
             const reminders = items
               .filter((item) => item.kind === 'reminder' && item.days.includes(day))
               .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
-            const centers = reminderCenters(reminders.map((item) => item.start))
+            const bottoms = reminderBottoms(reminders.map((item) => item.start))
 
             return (
               <div
@@ -102,7 +102,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
                     key={item.id}
                     item={item}
                     color={colorOf(item)}
-                    center={centers[index]}
+                    bottom={bottoms[index]}
                     onClick={() => onItemClick(item)}
                   />
                 ))}
@@ -160,22 +160,23 @@ function BlockCard({
 function ReminderChip({
   item,
   color,
-  center,
+  bottom,
   onClick,
 }: {
   item: RoutineItem
   color: string | null
-  center: number
+  bottom: number
   onClick: () => void
 }) {
-  // Anclado a la derecha sin ocupar todo el ancho: si coincide en hora con el
-  // inicio de un bloque, el título del bloque sigue leyéndose a la izquierda.
+  // Cuelga ENCIMA de su línea de hora (translate-y-full) y anclado a la
+  // derecha con ancho capado: así nunca pisa el título de un bloque que
+  // empiece a esa misma hora, ni siquiera con un detalle largo.
   return (
     <button
       type="button"
       onClick={onClick}
-      className="cat-mark absolute right-1 z-10 flex h-5 max-w-[calc(100%-0.5rem)] -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-opacity hover:opacity-80"
-      style={{ ...categoryColorStyle(color), top: center, borderColor: 'var(--cat)' }}
+      className="cat-mark absolute right-1 z-10 flex h-5 max-w-[75%] -translate-y-full cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-opacity hover:opacity-80"
+      style={{ ...categoryColorStyle(color), top: bottom, borderColor: 'var(--cat)' }}
       title={`${item.title} · ${item.start}${item.detail ? ` · ${item.detail}` : ''}`}
     >
       <span
