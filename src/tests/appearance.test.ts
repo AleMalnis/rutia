@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_APPEARANCE,
@@ -139,8 +140,9 @@ describe('ProfilesRepo.setPreference (merge real, no el del mock)', () => {
     }
 
     const { createProfilesRepo } = await import('@/repositories/profiles.repo')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const repo = createProfilesRepo(supabase as any)
+    // doble cast honesto: el stub cubre solo la porción del cliente que usa
+    // este repositorio, no la superficie completa de SupabaseClient
+    const repo = createProfilesRepo(supabase as unknown as SupabaseClient)
     await repo.setPreference(USER, 'appearance', { mode: 'dark' })
 
     expect(updatePayload).toEqual({
