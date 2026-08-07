@@ -71,15 +71,15 @@ export function TodayPanel({
   return (
     <section
       aria-labelledby="titulo-hoy"
-      className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+      className="flex flex-col gap-2 rounded-xl border border-edge bg-card p-3"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id="titulo-hoy" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 id="titulo-hoy" className="text-sm font-semibold text-ink">
           Hoy · {DAY_NAMES[weekday]}
         </h2>
         {optimistic.length > 0 && (
           <>
-            <span aria-hidden className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+            <span aria-hidden className="text-xs tabular-nums text-ink-3">
               {hechos}/{optimistic.length}
             </span>
             {/* el «3/8» se lee mal en voz alta y su cambio no se anunciaría */}
@@ -97,7 +97,7 @@ export function TodayPanel({
       )}
 
       {optimistic.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Hoy no tienes nada planificado.</p>
+        <p className="text-sm text-ink-3">Hoy no tienes nada planificado.</p>
       ) : (
         // role="list" explícito: Tailwind quita los bullets y Safari/VoiceOver
         // deja de anunciar la lista cuando list-style es none
@@ -117,7 +117,7 @@ export function TodayPanel({
                     onChange={() => toggle(entry)}
                     disabled={pendingIds.includes(entry.item.id)}
                     aria-label={`Marcar «${entry.item.title}» de las ${entry.item.start} como hecho`}
-                    className="size-4 accent-zinc-900 disabled:opacity-50 dark:accent-zinc-100"
+                    className="size-4 accent-accent disabled:opacity-50"
                   />
                 </label>
                 <span
@@ -127,7 +127,7 @@ export function TodayPanel({
                 />
                 <span
                   aria-hidden
-                  className="w-11 shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-400"
+                  className="w-11 shrink-0 text-xs tabular-nums text-ink-3"
                 >
                   {entry.item.start}
                 </span>
@@ -137,8 +137,8 @@ export function TodayPanel({
                   title={texto}
                   className={`min-w-0 flex-1 truncate py-1.5 text-left text-sm transition-opacity hover:opacity-70 ${
                     entry.done
-                      ? 'text-zinc-400 line-through dark:text-zinc-600'
-                      : 'text-zinc-800 dark:text-zinc-200'
+                      ? 'text-ink-3 line-through'
+                      : 'text-ink'
                   }`}
                 >
                   {texto}

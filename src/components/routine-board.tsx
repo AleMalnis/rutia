@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { AppearanceDialog } from '@/components/appearance-dialog'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { TodayPanel, type TodayEntry } from '@/components/today-panel'
 import { WeekCalendar } from '@/components/week-calendar'
+import type { Appearance } from '@/lib/appearance'
 import type { Category, RoutineItem } from '@/lib/schemas'
 
 // Dueño del estado de los diálogos: el calendario y la leyenda son
@@ -13,6 +15,7 @@ import type { Category, RoutineItem } from '@/lib/schemas'
 type Dialog =
   | { type: 'item'; item: RoutineItem | null }
   | { type: 'categories' }
+  | { type: 'appearance' }
   | null
 
 export function RoutineBoard({
@@ -21,6 +24,7 @@ export function RoutineBoard({
   todayEntries,
   todayWeekday,
   todayDate,
+  appearance,
   children,
 }: {
   items: RoutineItem[]
@@ -28,6 +32,7 @@ export function RoutineBoard({
   todayEntries: TodayEntry[]
   todayWeekday: number
   todayDate: string
+  appearance: Appearance
   // la cabecera de la página se recibe como slot para que quede DENTRO del
   // contenedor inert: si no, con el diálogo abierto se puede tabular hasta
   // «Cerrar sesión» y cerrar sesión perdiendo lo que se estaba editando
@@ -79,19 +84,28 @@ export function RoutineBoard({
             <button
               type="button"
               onClick={() => open({ type: 'categories' })}
-              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
             >
               Categorías
             </button>
             <CategoryLegend categories={categories} />
           </div>
-          <button
-            type="button"
-            onClick={() => openItem(null)}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            Nuevo ítem
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => open({ type: 'appearance' })}
+              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
+            >
+              Apariencia
+            </button>
+            <button
+              type="button"
+              onClick={() => openItem(null)}
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+            >
+              Nuevo ítem
+            </button>
+          </div>
         </div>
 
         {/* «Hoy» va primero en el DOM porque en móvil es la vista principal
@@ -108,13 +122,13 @@ export function RoutineBoard({
             />
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white lg:order-1 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="overflow-hidden rounded-xl border border-edge bg-card lg:order-1">
             <WeekCalendar items={items} categories={categories} onItemClick={openItem} />
           </div>
         </div>
 
         {items.length === 0 && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-ink-3">
             Tu rutina está vacía. Pulsa «Nuevo ítem» para empezar.
           </p>
         )}
@@ -133,6 +147,10 @@ export function RoutineBoard({
 
       {dialog?.type === 'categories' && (
         <CategoryManagerDialog categories={categories} onClose={close} />
+      )}
+
+      {dialog?.type === 'appearance' && (
+        <AppearanceDialog appearance={appearance} onClose={close} />
       )}
     </>
   )

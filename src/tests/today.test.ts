@@ -140,6 +140,10 @@ describe('RoutineService: hoy y completado', () => {
         calls.setTimezone += 1
         zone = tz
       },
+      async getPreferences() {
+        return {}
+      },
+      async setPreference() {},
     }
     const categories: CategoriesRepo = {
       async listByUser() {

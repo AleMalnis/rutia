@@ -1,5 +1,7 @@
 import { z } from 'zod'
+import { normalizeAppearance, type Appearance } from '@/lib/appearance'
 import {
+  appearanceSchema,
   categoryInputSchema,
   categoryUpdateSchema,
   createRoutineItemSchema,
@@ -280,6 +282,24 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: firstIssue(parsedId.error) }
       }
       return { ok: true, deleted: await categoriesRepo.deleteById(userId, parsedId.data) }
+    },
+
+    /** Apariencia guardada, con valores por defecto si falta o es inválida. */
+    async getAppearance(userId: string): Promise<Appearance> {
+      const preferences = await profilesRepo.getPreferences(userId)
+      return normalizeAppearance(preferences.appearance)
+    },
+
+    async updateAppearance(
+      userId: string,
+      input: unknown,
+    ): Promise<{ ok: true; appearance: Appearance } | ServiceFailure> {
+      const parsed = appearanceSchema.safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      await profilesRepo.setPreference(userId, 'appearance', parsed.data)
+      return { ok: true, appearance: parsed.data }
     },
 
     /**

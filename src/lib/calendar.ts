@@ -51,31 +51,31 @@ export function blockGeometry(start: string, end: string): BlockGeometry | null 
   return { top, height }
 }
 
-// Los chips miden h-5 (20 px) y se centran en su hora con translate-y-1/2.
+// Los chips miden h-5 (20 px) y CUELGAN justo encima de su línea de hora: el
+// título de un bloque que empiece a esa misma hora vive justo debajo de la
+// línea, así que chip y título dejan de pisarse.
 const CHIP_HEIGHT_PX = 20
 const CHIP_GAP_PX = 2
 
-// Centros verticales de los chips de un día, a partir de sus horas ORDENADAS
-// ascendentemente. Reglas: un recordatorio fuera de la rejilla se fija al
-// borde (ocultar una toma de medicación sería peor); los chips que caerían
-// encima de otro se apilan hacia abajo para que ninguno quede tapado.
-export function reminderCenters(starts: string[]): number[] {
-  const half = CHIP_HEIGHT_PX / 2
-  const centers: number[] = []
-  let previous = Number.NEGATIVE_INFINITY
+// Borde INFERIOR de cada chip de un día (el componente usa -translate-y-full),
+// a partir de sus horas ORDENADAS ascendentemente. Un recordatorio fuera de la
+// rejilla se fija al borde (ocultar una toma de medicación sería peor); los
+// chips que colisionan se apilan hacia ARRIBA, alejándose de su línea. Se
+// procesa en orden inverso para que el último de una misma hora quede pegado
+// a la línea y los anteriores suban.
+export function reminderBottoms(starts: string[]): number[] {
+  const bottoms: number[] = new Array<number>(starts.length)
+  let limit = Number.POSITIVE_INFINITY
 
-  for (const start of starts) {
-    const minutes = Math.min(Math.max(timeToMinutes(start), DAY_START_MIN), DAY_END_MIN)
-    let center = ((minutes - DAY_START_MIN) / 60) * HOUR_PX
-    center = Math.min(Math.max(center, half), GRID_HEIGHT_PX - half)
-    if (center - previous < CHIP_HEIGHT_PX + CHIP_GAP_PX) {
-      center = previous + CHIP_HEIGHT_PX + CHIP_GAP_PX
-    }
-    // techo absoluto: en el caso extremo de varios chips apilados contra la
-    // medianoche se admite solape antes que desbordar la rejilla
-    center = Math.min(center, GRID_HEIGHT_PX - half)
-    centers.push(center)
-    previous = center
+  for (let i = starts.length - 1; i >= 0; i--) {
+    const minutes = Math.min(Math.max(timeToMinutes(starts[i]), DAY_START_MIN), DAY_END_MIN)
+    let bottom = ((minutes - DAY_START_MIN) / 60) * HOUR_PX
+    bottom = Math.min(bottom, GRID_HEIGHT_PX, limit)
+    // el chip entero debe caber: pegado al borde superior (06:00) se admite
+    // solape antes que desbordar la rejilla
+    bottom = Math.max(bottom, CHIP_HEIGHT_PX)
+    bottoms[i] = bottom
+    limit = bottom - CHIP_HEIGHT_PX - CHIP_GAP_PX
   }
-  return centers
+  return bottoms
 }

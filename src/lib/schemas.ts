@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FONTS, MODES, THEME_IDS } from '@/lib/appearance'
 import { CATEGORY_COLOR_VALUES } from '@/lib/category-colors'
 
 // Esquemas Zod y tipos compartidos (spec §7.2: validación en todas las
@@ -134,6 +135,16 @@ export const updateRoutineItemSchema = z
 
 export type CreateRoutineItemInput = z.infer<typeof createRoutineItemSchema>
 export type UpdateRoutineItemInput = z.infer<typeof updateRoutineItemSchema>
+
+// ── Apariencia (spec §4) ─────────────────────────────────────────────────────
+
+export const appearanceSchema = z.object({
+  mode: z.enum(MODES, 'Modo de apariencia no válido.'),
+  theme: z
+    .string('Elige un tema.')
+    .refine((value) => THEME_IDS.includes(value), 'Elige un tema de la lista.'),
+  font: z.enum(FONTS, 'Fuente no válida.'),
+})
 
 // ── Categorías propias (spec §4) ─────────────────────────────────────────────
 

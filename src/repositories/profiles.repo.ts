@@ -24,6 +24,35 @@ export function createProfilesRepo(supabase: SupabaseClient) {
         .eq('id', userId)
       if (error) throw new RepoError(error.message, error.code)
     },
+
+    async getPreferences(userId: string): Promise<Record<string, unknown>> {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', userId)
+        .maybeSingle()
+      if (error) throw new RepoError(error.message, error.code)
+      const preferences = (data as { preferences: unknown } | null)?.preferences
+      return typeof preferences === 'object' && preferences != null
+        ? (preferences as Record<string, unknown>)
+        : {}
+    },
+
+    /**
+     * Sobrescribe una clave de preferences conservando las demás.
+     * Deuda conocida: es un leer-mezclar-escribir no atómico. Hoy `appearance`
+     * es la única clave y el peor caso es last-write-wins entre pestañas; si
+     * algún día hay una segunda clave, esto debe pasar a un merge atómico en
+     * BD (`preferences = preferences || $1` vía función SQL + rpc).
+     */
+    async setPreference(userId: string, key: string, value: unknown): Promise<void> {
+      const current = await this.getPreferences(userId)
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferences: { ...current, [key]: value } })
+        .eq('id', userId)
+      if (error) throw new RepoError(error.message, error.code)
+    },
   }
 }
 

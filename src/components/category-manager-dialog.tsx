@@ -123,12 +123,12 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-categorias"
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-lg outline-none dark:border-zinc-800 dark:bg-zinc-950"
+        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl border border-edge bg-card p-4 shadow-lg outline-none"
       >
         <div className="mb-3 flex items-center justify-between">
           <h2
             id="titulo-categorias"
-            className="text-base font-semibold text-zinc-900 dark:text-zinc-50"
+            className="text-base font-semibold text-ink"
           >
             Categorías
           </h2>
@@ -136,7 +136,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-ink hover:bg-edge/40 disabled:opacity-50"
           >
             Cerrar
           </button>
@@ -156,13 +156,13 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                 className="cat-mark h-3.5 w-3.5 shrink-0 rounded-full"
                 style={{ ...categoryColorStyle(category.color), backgroundColor: 'var(--cat)' }}
               />
-              <span className="min-w-0 flex-1 truncate text-sm text-zinc-800 dark:text-zinc-200">
+              <span className="min-w-0 flex-1 truncate text-sm text-ink">
                 {category.name}
               </span>
 
               {confirmingDelete === category.id ? (
                 <span className="flex items-center gap-1.5 text-sm">
-                  <span className="text-zinc-600 dark:text-zinc-400">¿Borrar?</span>
+                  <span className="text-ink-2">¿Borrar?</span>
                   <button
                     ref={confirmRef}
                     type="button"
@@ -176,7 +176,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                     type="button"
                     onClick={() => setConfirmingDelete(null)}
                     disabled={isPending}
-                    className="rounded-md px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    className="rounded-md px-2 py-0.5 text-xs text-ink-2 hover:bg-edge/40"
                   >
                     No
                   </button>
@@ -192,7 +192,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                       setConfirmingDelete(null)
                     }}
                     disabled={isPending || draft != null}
-                    className="rounded-md px-2 py-0.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    className="rounded-md px-2 py-0.5 text-xs font-medium text-ink-2 hover:bg-edge/40 disabled:opacity-50"
                   >
                     Editar
                   </button>
@@ -213,7 +213,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
           ))}
         </ul>
 
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-ink-3">
           Al borrar una categoría, sus ítems quedan «sin categoría».
         </p>
 
@@ -222,20 +222,20 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
             type="button"
             onClick={() => setDraft({ id: null, name: '', color: CATEGORY_COLORS[0].light })}
             disabled={isPending}
-            className="mt-3 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="mt-3 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:opacity-85 disabled:opacity-50"
           >
             Nueva categoría
           </button>
         ) : (
           <form
-            className="mt-3 space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+            className="mt-3 space-y-3 rounded-lg border border-edge p-3"
             onSubmit={(event) => {
               event.preventDefault()
               submitDraft()
             }}
           >
             <label className="block space-y-1">
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">Nombre</span>
+              <span className="text-sm text-ink-2">Nombre</span>
               <input
                 type="text"
                 required
@@ -243,13 +243,13 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                 autoFocus
                 value={draft.name}
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="w-full rounded-md border border-edge bg-card px-2 py-1.5 text-sm text-ink"
               />
             </label>
 
             <fieldset className="space-y-1">
-              <legend className="text-sm text-zinc-700 dark:text-zinc-300">
-                Color <span className="text-zinc-500 dark:text-zinc-400">(muestrario validado)</span>
+              <legend className="text-sm text-ink-2">
+                Color <span className="text-ink-3">(muestrario validado)</span>
               </legend>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -261,7 +261,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                   <label
                     key={color.light}
                     title={color.name}
-                    className="cat-mark relative h-7 w-7 cursor-pointer rounded-full has-checked:ring-2 has-checked:ring-zinc-900 has-checked:ring-offset-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-zinc-900 dark:has-checked:ring-zinc-100 dark:ring-offset-zinc-950 dark:has-focus-visible:outline-zinc-100"
+                    className="cat-mark relative h-7 w-7 cursor-pointer rounded-full ring-offset-card has-checked:ring-2 has-checked:ring-accent has-checked:ring-offset-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent"
                     style={{ ...categoryColorStyle(color.light), backgroundColor: 'var(--cat)' }}
                   >
                     <input
@@ -277,7 +277,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                 ))}
               </div>
               {legacyColor && (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-ink-3">
                   El color actual es anterior al muestrario validado. Puedes conservarlo o elegir
                   uno nuevo.
                 </p>
@@ -289,14 +289,14 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                 type="button"
                 onClick={() => setDraft(null)}
                 disabled={isPending}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-ink hover:bg-edge/40 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:opacity-85 disabled:opacity-50"
               >
                 {isPending ? 'Guardando…' : 'Guardar'}
               </button>

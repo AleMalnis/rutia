@@ -238,6 +238,35 @@ export async function deleteCategory(categoryId: string): Promise<CategoryFormSt
   }
 }
 
+export type AppearanceFormState =
+  | { status: 'ok' }
+  | { status: 'error'; message: string }
+  | null
+
+/** Guarda la apariencia elegida (spec §4: modo, tema y fuente). */
+export async function saveAppearance(input: {
+  mode: string
+  theme: string
+  font: string
+}): Promise<AppearanceFormState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const result = await context.service.updateAppearance(context.userId, input)
+    if (!result.ok) {
+      return {
+        status: 'error',
+        message: result.reason === 'conflict' ? 'No se pudo guardar.' : result.message,
+      }
+    }
+    revalidatePath('/app')
+    return { status: 'ok' }
+  } catch (error) {
+    return unexpectedFailure('saveAppearance', error)
+  }
+}
+
 /**
  * Guarda la zona horaria real del navegador. Sin esto todo el mundo corría con
  * el valor por defecto del perfil y «hoy» se calculaba en el huso equivocado.

@@ -6,7 +6,7 @@ import {
   DAY_NAMES,
   GRID_HEIGHT_PX,
   HOUR_PX,
-  reminderCenters,
+  reminderBottoms,
 } from '@/lib/calendar'
 import { categoryColorStyle } from '@/lib/category-colors'
 
@@ -38,7 +38,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
           {DAY_NAMES.map((name) => (
             <div
               key={name}
-              className="border-b border-l border-zinc-200 px-2 py-2 text-center text-sm font-medium text-zinc-700 dark:border-zinc-800 dark:text-zinc-300"
+              className="border-b border-l border-edge px-2 py-2 text-center text-sm font-medium text-ink-2"
             >
               {name}
             </div>
@@ -48,13 +48,13 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
         <div className={GRID_COLS}>
           {/* columna de horas: fija durante el scroll horizontal en móvil */}
           <div
-            className="sticky left-0 z-20 bg-white dark:bg-zinc-950"
+            className="sticky left-0 z-20 bg-card"
             style={{ height: GRID_HEIGHT_PX }}
           >
             {HOURS.map((hour, index) => (
               <span
                 key={hour}
-                className="absolute right-1.5 -translate-y-1/2 text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500"
+                className="absolute right-1.5 -translate-y-1/2 text-[11px] tabular-nums text-ink-3"
                 style={{ top: index * HOUR_PX }}
               >
                 {String(hour).padStart(2, '0')}:00
@@ -66,12 +66,12 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
             const reminders = items
               .filter((item) => item.kind === 'reminder' && item.days.includes(day))
               .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
-            const centers = reminderCenters(reminders.map((item) => item.start))
+            const bottoms = reminderBottoms(reminders.map((item) => item.start))
 
             return (
               <div
                 key={name}
-                className="relative border-l border-zinc-200 dark:border-zinc-800"
+                className="relative border-l border-edge"
                 style={{ height: GRID_HEIGHT_PX }}
               >
                 {/* líneas de hora */}
@@ -80,7 +80,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
                     <div
                       key={hour}
                       aria-hidden
-                      className="absolute inset-x-0 border-t border-zinc-100 dark:border-zinc-800/60"
+                      className="absolute inset-x-0 border-t border-edge/50"
                       style={{ top: index * HOUR_PX }}
                     />
                   ),
@@ -102,7 +102,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
                     key={item.id}
                     item={item}
                     color={colorOf(item)}
-                    center={centers[index]}
+                    bottom={bottoms[index]}
                     onClick={() => onItemClick(item)}
                   />
                 ))}
@@ -143,14 +143,14 @@ function BlockCard({
       }}
       title={`${item.title} · ${item.start}–${item.end}${item.detail ? ` · ${item.detail}` : ''}`}
     >
-      <p className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
+      <p className="truncate text-xs font-medium text-ink">
         {item.title}
       </p>
       {/* el detalle como subtítulo (spec §4): «Cena · Pasta» */}
       {item.detail && (
-        <p className="truncate text-[11px] text-zinc-600 dark:text-zinc-400">{item.detail}</p>
+        <p className="truncate text-[11px] text-ink-2">{item.detail}</p>
       )}
-      <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-500">
+      <p className="truncate text-[11px] tabular-nums text-ink-3">
         {item.start}–{item.end}
       </p>
     </button>
@@ -160,22 +160,23 @@ function BlockCard({
 function ReminderChip({
   item,
   color,
-  center,
+  bottom,
   onClick,
 }: {
   item: RoutineItem
   color: string | null
-  center: number
+  bottom: number
   onClick: () => void
 }) {
-  // Anclado a la derecha sin ocupar todo el ancho: si coincide en hora con el
-  // inicio de un bloque, el título del bloque sigue leyéndose a la izquierda.
+  // Cuelga ENCIMA de su línea de hora (translate-y-full) y anclado a la
+  // derecha con ancho capado: así nunca pisa el título de un bloque que
+  // empiece a esa misma hora, ni siquiera con un detalle largo.
   return (
     <button
       type="button"
       onClick={onClick}
-      className="cat-mark absolute right-1 z-10 flex h-5 max-w-[calc(100%-0.5rem)] -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full border bg-white px-1.5 shadow-sm transition-opacity hover:opacity-80 dark:bg-zinc-900"
-      style={{ ...categoryColorStyle(color), top: center, borderColor: 'var(--cat)' }}
+      className="cat-mark absolute right-1 z-10 flex h-5 max-w-[75%] -translate-y-full cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-opacity hover:opacity-80"
+      style={{ ...categoryColorStyle(color), top: bottom, borderColor: 'var(--cat)' }}
       title={`${item.title} · ${item.start}${item.detail ? ` · ${item.detail}` : ''}`}
     >
       <span
@@ -185,7 +186,7 @@ function ReminderChip({
       />
       {/* el detalle como subtítulo también en el chip (spec §4):
           «Medicación · Enalapril 10 mg» */}
-      <span className="truncate text-[11px] text-zinc-800 dark:text-zinc-200">
+      <span className="truncate text-[11px] text-ink">
         {item.title}
         {item.detail ? ` · ${item.detail}` : ''}
       </span>
