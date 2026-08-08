@@ -50,23 +50,44 @@ export type LLMReply = {
 }
 
 export type LLMClient = {
-  complete(input: { system: string; turns: LLMTurn[]; tools: LLMToolDef[] }): Promise<LLMReply>
+  complete(input: {
+    system: string
+    turns: LLMTurn[]
+    tools: LLMToolDef[]
+    /** Fecha límite compartida de toda la petición (ver AgentService). */
+    signal?: AbortSignal
+  }): Promise<LLMReply>
 }
 
 /**
  * Fallo del proveedor, tipado para que la ruta lo traduzca sin conocer SDKs.
  * bad_key: clave inválida/revocada → revisar Ajustes. quota: cuenta sin
  * crédito o cuota agotada → arreglar facturación (condición PERMANENTE, no
- * «vuelve a intentarlo»). provider: fallo transitorio del servicio.
+ * «vuelve a intentarlo»). timeout: se agotó el presupuesto de la petición.
+ * provider: fallo transitorio del servicio.
  */
 export class LLMError extends Error {
-  readonly kind: 'bad_key' | 'quota' | 'provider'
+  readonly kind: 'bad_key' | 'quota' | 'timeout' | 'provider'
 
-  constructor(kind: 'bad_key' | 'quota' | 'provider', message: string) {
+  constructor(kind: 'bad_key' | 'quota' | 'timeout' | 'provider', message: string) {
     super(message)
     this.name = 'LLMError'
     this.kind = kind
   }
+}
+
+// Un proveedor colgado no puede comerse el presupuesto de la función
+// serverless: los SDKs traen timeouts de 10 min y reintentos propios, muy por
+// encima de lo que Vercel permite. El corte real lo pone el signal compartido
+// de AgentService; los reintentos se acotan para que un fallo transitorio no
+// multiplique la espera.
+const MAX_RETRIES = 1
+const GOOGLE_ATTEMPTS = MAX_RETRIES + 1
+
+/** Distingue «lo hemos cortado nosotros» de un fallo real del proveedor. */
+function abortedFailure(signal: AbortSignal | undefined, provider: string): LLMError | null {
+  if (signal?.aborted !== true) return null
+  return new LLMError('timeout', `${provider}: petición cancelada por tiempo.`)
 }
 
 // Modelos por defecto (spec §6.4); ajustables por env sin tocar código.
@@ -138,23 +159,27 @@ function toAnthropicMessages(turns: LLMTurn[]): Anthropic.MessageParam[] {
 }
 
 function createAnthropicClient(apiKey: string): LLMClient {
+  // el cliente se construye UNA vez por petición, no en cada ronda del bucle
+  const client = new Anthropic({ apiKey, maxRetries: MAX_RETRIES })
   return {
-    async complete({ system, turns, tools }) {
-      const client = new Anthropic({ apiKey })
+    async complete({ system, turns, tools, signal }) {
       try {
-        const response = await client.messages.create({
-          model: modelFor('anthropic'),
-          max_tokens: MAX_TOKENS,
-          system,
-          messages: toAnthropicMessages(turns),
-          tools: tools.map(
-            (tool): Anthropic.Tool => ({
-              name: tool.name,
-              description: tool.description,
-              input_schema: tool.inputSchema as Anthropic.Tool.InputSchema,
-            }),
-          ),
-        })
+        const response = await client.messages.create(
+          {
+            model: modelFor('anthropic'),
+            max_tokens: MAX_TOKENS,
+            system,
+            messages: toAnthropicMessages(turns),
+            tools: tools.map(
+              (tool): Anthropic.Tool => ({
+                name: tool.name,
+                description: tool.description,
+                input_schema: tool.inputSchema as Anthropic.Tool.InputSchema,
+              }),
+            ),
+          },
+          { signal },
+        )
 
         const text = response.content
           .filter((block): block is Anthropic.TextBlock => block.type === 'text')
@@ -176,6 +201,8 @@ function createAnthropicClient(apiKey: string): LLMClient {
       } catch (error) {
         // sin adjuntar la petición (contiene la rutina del usuario) y sin la
         // clave (los SDKs no la incluyen en sus mensajes de error)
+        const aborted = abortedFailure(signal, 'Anthropic')
+        if (aborted) throw aborted
         if (error instanceof Anthropic.APIError) {
           if (error.status === 401 || error.status === 403) {
             throw new LLMError('bad_key', `Anthropic ${error.status}: clave rechazada.`)
@@ -222,23 +249,26 @@ export function toOpenAIInput(turns: LLMTurn[]): OpenAI.Responses.ResponseInputI
 }
 
 function createOpenAIClient(apiKey: string): LLMClient {
+  const client = new OpenAI({ apiKey, maxRetries: MAX_RETRIES })
   return {
-    async complete({ system, turns, tools }) {
-      const client = new OpenAI({ apiKey })
+    async complete({ system, turns, tools, signal }) {
       try {
-        const response = await client.responses.create({
-          model: modelFor('openai'),
-          max_output_tokens: MAX_TOKENS,
-          instructions: system,
-          input: toOpenAIInput(turns),
-          tools: tools.map((tool) => ({
-            type: 'function' as const,
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.inputSchema,
-            strict: false,
-          })),
-        })
+        const response = await client.responses.create(
+          {
+            model: modelFor('openai'),
+            max_output_tokens: MAX_TOKENS,
+            instructions: system,
+            input: toOpenAIInput(turns),
+            tools: tools.map((tool) => ({
+              type: 'function' as const,
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.inputSchema,
+              strict: false,
+            })),
+          },
+          { signal },
+        )
 
         const toolCalls = response.output
           .filter(
@@ -257,6 +287,8 @@ function createOpenAIClient(apiKey: string): LLMClient {
           truncated: response.status === 'incomplete',
         }
       } catch (error) {
+        const aborted = abortedFailure(signal, 'OpenAI')
+        if (aborted) throw aborted
         if (error instanceof OpenAI.APIError) {
           if (error.status === 401 || error.status === 403) {
             throw new LLMError('bad_key', `OpenAI ${error.status}: clave rechazada.`)
@@ -321,9 +353,12 @@ export function toGeminiContents(turns: LLMTurn[]): Content[] {
 }
 
 function createGoogleClient(apiKey: string): LLMClient {
+  const client = new GoogleGenAI({
+    apiKey,
+    httpOptions: { retryOptions: { attempts: GOOGLE_ATTEMPTS } },
+  })
   return {
-    async complete({ system, turns, tools }) {
-      const client = new GoogleGenAI({ apiKey })
+    async complete({ system, turns, tools, signal }) {
       try {
         const response = await client.models.generateContent({
           model: modelFor('google'),
@@ -331,6 +366,7 @@ function createGoogleClient(apiKey: string): LLMClient {
           config: {
             systemInstruction: system,
             maxOutputTokens: MAX_TOKENS,
+            abortSignal: signal,
             tools: [
               {
                 functionDeclarations: tools.map((tool) => ({
@@ -362,6 +398,8 @@ function createGoogleClient(apiKey: string): LLMClient {
           truncated,
         }
       } catch (error) {
+        const aborted = abortedFailure(signal, 'Google')
+        if (aborted) throw aborted
         const message = error instanceof Error ? error.message : String(error)
         // Google devuelve la clave inválida como 400 INVALID_ARGUMENT y la
         // clave deshabilitada/proyecto suspendido como PERMISSION_DENIED

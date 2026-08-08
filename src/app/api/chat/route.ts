@@ -17,6 +17,12 @@ import { createRoutineService } from '@/services/routine.service'
 // verifica aquí; el chat funciona SOLO con la clave BYOK del usuario (spec
 // §6.4): sin clave se devuelve code:'no_key' y la UI ofrece configurarla.
 
+// El bucle agéntico encadena hasta 5 llamadas al proveedor: el tope por
+// defecto de la plataforma (segundos) cortaría una conversación normal. 60 s
+// es el máximo del plan gratuito de Vercel; AgentService se corta antes
+// (REQUEST_BUDGET_MS) para poder responder con un mensaje útil.
+export const maxDuration = 60
+
 // las respuestas llevan Set-Cookie de sesión: que ningún CDN las cachee
 const NO_STORE = { 'Cache-Control': 'private, no-store' }
 
@@ -89,6 +95,12 @@ export async function POST(request: Request) {
       console.error('[api/chat]', error.name, error.kind, error.message)
       if (error.kind === 'bad_key') {
         return jsonError('Tu clave de API parece inválida o revocada. Revísala en «IA».', 400)
+      }
+      if (error.kind === 'timeout') {
+        return jsonError(
+          'El asistente ha tardado demasiado en responder. Prueba a pedírmelo en pasos más pequeños.',
+          504,
+        )
       }
       if (error.kind === 'quota') {
         // condición permanente de la cuenta del usuario: decir «vuelve a

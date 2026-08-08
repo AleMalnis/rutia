@@ -11,6 +11,12 @@ import type { RoutineService, TodayResult } from '@/services/routine.service'
 // solo texto, con un máximo de 5 rondas por mensaje (coste y seguridad).
 
 const MAX_ROUNDS = 5
+// Presupuesto de TODA la petición, compartido por las hasta 5 llamadas al
+// proveedor. Sin él, los timeouts propios de los SDKs (10 min) más sus
+// reintentos superarían de largo el límite de ejecución de la función
+// serverless, y Vercel cortaría con un 504 mudo. Se deja margen bajo el
+// maxDuration de /api/chat para poder responder con un mensaje útil.
+const REQUEST_BUDGET_MS = 50_000
 // contexto conversacional: los últimos N mensajes persistidos (spec §6.1)
 const HISTORY_LIMIT = 12
 // rate limit (spec §8): 20 mensajes de usuario cada 5 minutos
@@ -192,9 +198,17 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
         }
       }
 
+      // una sola fecha límite para todas las rondas, no una por llamada
+      const deadline = AbortSignal.timeout(REQUEST_BUDGET_MS)
+
       try {
         for (let round = 1; round <= MAX_ROUNDS; round++) {
-          const response = await llm.complete({ system, turns, tools: AGENT_TOOLS })
+          const response = await llm.complete({
+            system,
+            turns,
+            tools: AGENT_TOOLS,
+            signal: deadline,
+          })
           lastTruncated = response.truncated === true
 
           if (response.toolCalls.length === 0) {

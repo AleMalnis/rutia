@@ -53,6 +53,13 @@ export function ChatPanel({
     setPending(true)
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: message }])
 
+    // Si algo falla, el texto vuelve al cuadro: reescribir hasta 2000
+    // caracteres es inaceptable. La burbuja optimista SÍ se queda, porque en
+    // los fallos más habituales (clave rechazada, sin crédito, proveedor
+    // caído) el servidor ya guardó el mensaje antes de llamar al modelo, y
+    // quitarla mentiría en la dirección contraria.
+    const restoreDraft = () => setDraft((current) => (current.length === 0 ? message : current))
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -62,6 +69,7 @@ export function ChatPanel({
       const payload = (await response.json().catch(() => null)) as ChatApiPayload | null
 
       if (!response.ok || typeof payload?.reply !== 'string') {
+        restoreDraft()
         setError(
           typeof payload?.error === 'string'
             ? payload.error
@@ -80,6 +88,7 @@ export function ChatPanel({
         )
       }
     } catch {
+      restoreDraft()
       setError('No se ha podido contactar con el servidor. Revisa tu conexión.')
     } finally {
       setPending(false)

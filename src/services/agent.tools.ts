@@ -195,6 +195,13 @@ export async function executeAgentTool(
   now: Date,
   call: LLMToolCall,
 ): Promise<ToolExecution> {
+  // El tipo lo promete, pero los argumentos vienen del modelo a través de tres
+  // SDKs distintos: si llegara algo que no es un objeto, el `in` de más abajo
+  // lanzaría y el modelo recibiría «error interno» en vez de un mensaje que
+  // pueda corregir en la siguiente ronda.
+  if (typeof call.input !== 'object' || call.input === null || Array.isArray(call.input)) {
+    return fail({ reason: 'invalid', message: 'Los argumentos deben ser un objeto JSON.' })
+  }
   const input = call.input
 
   switch (call.name) {

@@ -184,7 +184,12 @@ function mkChatMessage(role: 'user' | 'assistant', content: string): ChatMessage
 // repite la última (útil para probar el tope de rondas). Una entrada Error
 // simula la caída del proveedor en esa llamada.
 function mkLLM(script: (LLMReply | Error)[]) {
-  const calls: { system: string; turns: LLMTurn[]; tools: LLMToolDef[] }[] = []
+  const calls: {
+    system: string
+    turns: LLMTurn[]
+    tools: LLMToolDef[]
+    signal?: AbortSignal
+  }[] = []
   const llm: LLMClient = {
     async complete(input) {
       calls.push(input)
@@ -535,6 +540,20 @@ describe('executeAgentTool: mapeo de llamadas → RoutineService', () => {
     expect(execution.isError).toBe(true)
     expect(JSON.parse(execution.content).message).toContain('desconocida')
   })
+
+  it('unos argumentos que no son un objeto se rechazan sin lanzar', async () => {
+    const routine = createRoutineService(mkDeps().deps)
+    // el tipo lo promete, pero esto viene del modelo a través de tres SDKs
+    for (const malformado of [null, 'texto', 42, ['a']] as unknown[]) {
+      const execution = await executeAgentTool(routine, USER, NOW, {
+        id: 't1',
+        name: 'update_item',
+        input: malformado as Record<string, unknown>,
+      })
+      expect(execution.isError).toBe(true)
+      expect(JSON.parse(execution.content).reason).toBe('invalid')
+    }
+  })
 })
 
 describe('AgentService.chat (LLM mockeado, spec §9)', () => {
@@ -813,6 +832,31 @@ describe('AgentService.chat (LLM mockeado, spec §9)', () => {
     expect(llm.calls).toHaveLength(5)
     // 5 llamadas al LLM = 4 rondas de ejecución; la quinta no ejecuta
     expect(items.calls.insert).toBe(4)
+  })
+
+  it('todas las rondas comparten UNA fecha límite (el presupuesto es de la petición)', async () => {
+    const { agent, llm } = mkAgent({
+      script: [
+        {
+          text: '',
+          toolCalls: [
+            {
+              id: 't1',
+              name: 'create_item',
+              input: { title: 'Pilates', kind: 'reminder', days: [5], start: '11:00' },
+            },
+          ],
+        },
+        { text: 'Hecho.', toolCalls: [] },
+      ],
+    })
+
+    await agent.chat(USER, 'ponme pilates', NOW)
+
+    expect(llm.calls).toHaveLength(2)
+    expect(llm.calls[0].signal).toBeInstanceOf(AbortSignal)
+    // la misma instancia: el tope acota el total, no cada llamada por separado
+    expect(llm.calls[1].signal).toBe(llm.calls[0].signal)
   })
 
   it('rate limit (spec §8): con 20 mensajes en 5 minutos ni siquiera llama al LLM', async () => {

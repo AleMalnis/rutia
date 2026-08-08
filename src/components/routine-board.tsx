@@ -61,21 +61,21 @@ export function RoutineBoard({
   // Ítems recién tocados por el agente (Must #6): se resaltan ~2 s en el
   // calendario tras refrescar los datos.
   const [highlightIds, setHighlightIds] = useState<ReadonlySet<string>>(new Set())
-  const highlightTimer = useRef<number | null>(null)
 
   function handleAgentMutation(affectedItemIds: string[]) {
     router.refresh()
     setHighlightIds(new Set(affectedItemIds))
-    if (highlightTimer.current != null) window.clearTimeout(highlightTimer.current)
-    highlightTimer.current = window.setTimeout(() => setHighlightIds(new Set()), 2500)
   }
 
-  useEffect(
-    () => () => {
-      if (highlightTimer.current != null) window.clearTimeout(highlightTimer.current)
-    },
-    [],
-  )
+  // La cuenta atrás se reinicia cuando llegan los ítems refrescados, no al
+  // pedir el refresco: `router.refresh()` es asíncrono y no devuelve promesa,
+  // así que con una conexión lenta el resaltado se apagaría antes de que el
+  // ítem nuevo llegue siquiera a pintarse.
+  useEffect(() => {
+    if (highlightIds.size === 0) return
+    const timer = window.setTimeout(() => setHighlightIds(new Set()), 2500)
+    return () => window.clearTimeout(timer)
+  }, [items, highlightIds])
 
   // El disparador se captura AQUÍ, en el clic: cuando el diálogo monta, el
   // fondo ya es inert y el navegador ha movido el foco a body, así que un
