@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { DAY_NAMES } from '@/lib/calendar'
 import type { ChatMessage, ChatRepo } from '@/repositories/chat.repo'
 import { AGENT_TOOLS, executeAgentTool, type ToolExecution } from '@/services/agent.tools'
-import type { LLMClient, LLMToolResult, LLMTurn } from '@/services/llm.client'
+import { LLMError, type LLMClient, type LLMToolResult, type LLMTurn } from '@/services/llm.client'
 import type { RoutineService, TodayResult } from '@/services/routine.service'
 
 // AgentService (spec §6.1): el bucle agéntico. Construye el contexto con la
@@ -43,6 +43,12 @@ export type AgentDeps = {
   // null cuando solo se necesita el historial (p. ej. al renderizar la
   // página): la clave BYOK del usuario puede no existir todavía
   llm: LLMClient | null
+  /**
+   * Presupuesto de la petición. Solo se pasa en los tests: el vencimiento va
+   * por reloj real (AbortSignal.timeout no se puede fingir con temporizadores
+   * simulados) y sin esta costura el corte por tiempo no sería comprobable.
+   */
+  requestBudgetMs?: number
 }
 
 // ── Serialización del contexto (spec §6.3) ───────────────────────────────────
@@ -100,7 +106,7 @@ function historyToTurns(history: ChatMessage[]): LLMTurn[] {
   return turns
 }
 
-export function createAgentService({ routine, chat, llm }: AgentDeps) {
+export function createAgentService({ routine, chat, llm, requestBudgetMs }: AgentDeps) {
   return {
     /** Historial para pintar el chat al cargar la página. */
     async history(userId: string, limit = 30): Promise<ChatMessage[]> {
@@ -177,7 +183,16 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
       // el mensaje forma parte del historial aunque el proveedor falle luego
       await chat.insert(userId, { role: 'user', content: message })
 
-      const executed: { tool: string; input: Record<string, unknown>; ok: boolean }[] = []
+      // `mutated` va aparte de `ok` a propósito: una herramienta puede
+      // terminar bien sin escribir nada (vaciar un día ya vacío), y de esa
+      // distinción depende si un corte por tiempo se cuenta como cambio
+      // aplicado o se le devuelve al usuario.
+      const executed: {
+        tool: string
+        input: Record<string, unknown>
+        ok: boolean
+        mutated: boolean
+      }[] = []
       const affected = new Set<string>()
       let reply = ''
       let lastTruncated = false
@@ -199,7 +214,7 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
       }
 
       // una sola fecha límite para todas las rondas, no una por llamada
-      const deadline = AbortSignal.timeout(REQUEST_BUDGET_MS)
+      const deadline = AbortSignal.timeout(requestBudgetMs ?? REQUEST_BUDGET_MS)
 
       try {
         for (let round = 1; round <= MAX_ROUNDS; round++) {
@@ -234,6 +249,18 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
 
           const results: LLMToolResult[] = []
           for (const call of response.toolCalls) {
+            // El presupuesto acota TODA la petición, no solo las llamadas al
+            // modelo: agotado el tiempo no se despacha ni una herramienta más,
+            // porque cada una escribe en la rutina del usuario y la función
+            // serverless está a punto de que la maten.
+            // El throw va FUERA del try de abajo a propósito: ese catch
+            // convierte los fallos en resultado para el modelo, y aquí no
+            // queremos seguir, sino salir. Lo recoge el catch del bucle, que
+            // devuelve lo ya aplicado si hubo mutaciones y, si no, deja subir
+            // el timeout para que la ruta responda con el consejo de trocear.
+            if (deadline.aborted) {
+              throw new LLMError('timeout', 'Presupuesto de la petición agotado.')
+            }
             const startedAt = Date.now()
             let execution: ToolExecution
             try {
@@ -252,6 +279,7 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
                 }),
                 isError: true,
                 affectedIds: [],
+                mutated: false,
               }
             }
             // log estructurado de cada tool call (spec §9): sin contenido del
@@ -264,7 +292,12 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
                 ms: Date.now() - startedAt,
               }),
             )
-            executed.push({ tool: call.name, input: call.input, ok: !execution.isError })
+            executed.push({
+              tool: call.name,
+              input: call.input,
+              ok: !execution.isError,
+              mutated: execution.mutated,
+            })
             for (const id of execution.affectedIds) affected.add(id)
             results.push({
               toolCallId: call.id,
@@ -279,7 +312,7 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
         // El proveedor ha fallado a mitad del bucle. Si ya hubo mutaciones, el
         // usuario tiene que enterarse (refresco + resaltado) y el historial
         // debe reflejarlas; si no, el error sube tal cual a la ruta.
-        if (!executed.some((call) => call.ok)) throw error
+        if (!executed.some((call) => call.mutated)) throw error
         const name = error instanceof Error ? error.name : 'Error'
         console.error('[agent-loop]', name, error instanceof Error ? error.message : String(error))
         reply =
@@ -313,7 +346,7 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
         ok: true,
         reply,
         affectedItemIds: [...affected],
-        mutated: executed.some((call) => call.ok),
+        mutated: executed.some((call) => call.mutated),
       }
     },
   }

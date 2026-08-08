@@ -7,7 +7,7 @@ import type { ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
 import { createAgentService } from '@/services/agent.service'
 import { AGENT_TOOLS, executeAgentTool } from '@/services/agent.tools'
-import type { LLMClient, LLMReply, LLMToolDef, LLMTurn } from '@/services/llm.client'
+import { LLMError, type LLMClient, type LLMReply, type LLMToolDef, type LLMTurn } from '@/services/llm.client'
 import { createRoutineService } from '@/services/routine.service'
 
 const USER = 'user-1'
@@ -182,8 +182,10 @@ function mkChatMessage(role: 'user' | 'assistant', content: string): ChatMessage
 
 // LLM mockeado (spec §9): un guion de respuestas; si el guion se acaba, se
 // repite la última (útil para probar el tope de rondas). Una entrada Error
-// simula la caída del proveedor en esa llamada.
-function mkLLM(script: (LLMReply | Error)[]) {
+// simula la caída del proveedor en esa llamada. `delayMs` simula una llamada
+// lenta, y el signal se respeta como en los clientes reales: con la fecha
+// límite ya vencida, la petición al proveedor falla.
+function mkLLM(script: (LLMReply | Error)[], delayMs = 0) {
   const calls: {
     system: string
     turns: LLMTurn[]
@@ -193,6 +195,8 @@ function mkLLM(script: (LLMReply | Error)[]) {
   const llm: LLMClient = {
     async complete(input) {
       calls.push(input)
+      if (input.signal?.aborted) throw new LLMError('timeout', 'mock: fecha límite vencida')
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
       const entry = script[Math.min(calls.length - 1, script.length - 1)]
       if (entry instanceof Error) throw entry
       return entry
@@ -562,13 +566,46 @@ describe('AgentService.chat (LLM mockeado, spec §9)', () => {
     script: (LLMReply | Error)[]
     recentUserCount?: number
     history?: ChatMessage[]
+    requestBudgetMs?: number
+    slowInsertMs?: number
+    slowListMs?: number
+    llmDelayMs?: number
   }) {
     const { deps, items } = mkDeps(options.items ?? [])
+    if (options.slowInsertMs != null) {
+      // simula una escritura lenta para que el presupuesto venza a mitad de lote
+      const original = deps.items.insert.bind(deps.items)
+      deps.items.insert = async (userId, item) => {
+        await new Promise((resolve) => setTimeout(resolve, options.slowInsertMs))
+        return original(userId, item)
+      }
+    }
+    if (options.slowListMs != null) {
+      // lectura lenta: agota el presupuesto sin escribir nada
+      const original = deps.items.listByUser.bind(deps.items)
+      deps.items.listByUser = async (userId) => {
+        await new Promise((resolve) => setTimeout(resolve, options.slowListMs))
+        return original(userId)
+      }
+    }
     const routine = createRoutineService(deps)
     const chat = mkChatRepo(options.recentUserCount ?? 0, options.history ?? [])
-    const llm = mkLLM(options.script)
-    const agent = createAgentService({ routine, chat: chat.repo, llm: llm.llm })
+    const llm = mkLLM(options.script, options.llmDelayMs ?? 0)
+    const agent = createAgentService({
+      routine,
+      chat: chat.repo,
+      llm: llm.llm,
+      requestBudgetMs: options.requestBudgetMs,
+    })
     return { agent, items, chat, llm }
+  }
+
+  function crearItem(id: string, title: string) {
+    return {
+      id,
+      name: 'create_item',
+      input: { title, kind: 'reminder', days: [5], start: '11:00' },
+    }
   }
 
   it('respuesta solo texto: sin herramientas, dos mensajes persistidos', async () => {
@@ -857,6 +894,73 @@ describe('AgentService.chat (LLM mockeado, spec §9)', () => {
     expect(llm.calls[0].signal).toBeInstanceOf(AbortSignal)
     // la misma instancia: el tope acota el total, no cada llamada por separado
     expect(llm.calls[1].signal).toBe(llm.calls[0].signal)
+  })
+
+  it('agotado el presupuesto, no se despacha ninguna herramienta más del lote', async () => {
+    const { agent, items } = mkAgent({
+      // el modelo pide crear tres ítems de golpe
+      script: [
+        {
+          text: '',
+          toolCalls: [crearItem('t1', 'Uno'), crearItem('t2', 'Dos'), crearItem('t3', 'Tres')],
+        },
+        { text: 'no debería llegar', toolCalls: [] },
+      ],
+      requestBudgetMs: 15,
+      slowInsertMs: 40, // la primera escritura ya agota el presupuesto
+    })
+
+    const result = await agent.chat(USER, 'créame tres cosas', NOW)
+
+    // lo aplicado se conserva y se informa; lo demás NO se escribe
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.mutated).toBe(true)
+    expect(result.reply).toContain('a medias')
+    expect(items.store.map((i) => i.title)).toEqual(['Uno'])
+  })
+
+  it('presupuesto agotado sin nada aplicado: sube como timeout para la ruta', async () => {
+    const { agent, items } = mkAgent({
+      script: [{ text: '', toolCalls: [crearItem('t1', 'Uno')] }],
+      requestBudgetMs: 15,
+      // el modelo tarda más que el presupuesto: al ir a despachar la primera
+      // herramienta ya no queda margen, así que no se escribe nada
+      llmDelayMs: 30,
+    })
+
+    await expect(agent.chat(USER, 'créame algo', NOW)).rejects.toMatchObject({
+      name: 'LLMError',
+      kind: 'timeout',
+    })
+    expect(items.store).toHaveLength(0)
+  })
+
+  it('una herramienta que no escribe nada no cuenta como cambio aplicado', async () => {
+    // vaciar un día que ya estaba vacío termina bien SIN tocar la BD: si el
+    // presupuesto vence después, el usuario tiene que enterarse del corte, no
+    // recibir un «lo he aplicado a medias» sobre cero escrituras
+    const lunes = mkItem({ days: [0] })
+    const { agent, items } = mkAgent({
+      items: [lunes],
+      script: [
+        {
+          text: '',
+          toolCalls: [
+            { id: 't1', name: 'clear_day', input: { day: 6 } }, // domingo, vacío
+            crearItem('t2', 'Gimnasio'),
+          ],
+        },
+      ],
+      requestBudgetMs: 15,
+      slowListMs: 40, // la lectura de clear_day agota el presupuesto
+    })
+
+    await expect(agent.chat(USER, 'vacía el domingo y ponme gimnasio', NOW)).rejects.toMatchObject({
+      name: 'LLMError',
+      kind: 'timeout',
+    })
+    expect(items.store.map((i) => i.title)).toEqual([lunes.title])
   })
 
   it('rate limit (spec §8): con 20 mensajes en 5 minutos ni siquiera llama al LLM', async () => {

@@ -144,6 +144,15 @@ export type ToolExecution = {
   isError: boolean
   /** Ítems existentes tocados por la herramienta, para resaltarlos en la UI. */
   affectedIds: string[]
+  /**
+   * ¿Escribió de verdad en la rutina? «No ha fallado» NO es «ha cambiado
+   * algo»: `clear_day` sobre un día ya vacío o `delete_items` con ids que ya
+   * no existen terminan bien sin tocar la base de datos. Quien decide si un
+   * corte por tiempo se cuenta como «lo apliqué a medias» o se le devuelve al
+   * usuario necesita esta distinción, no el isError. Y tampoco vale mirar
+   * affectedIds: `delete_items` borra de verdad sin devolver ninguno.
+   */
+  mutated: boolean
 }
 
 // Versión compacta de un ítem para los resultados: suficiente para que el
@@ -159,12 +168,26 @@ function compactItem(item: RoutineItem) {
   }
 }
 
-function ok(payload: Record<string, unknown>, affectedIds: string[] = []): ToolExecution {
-  return { content: JSON.stringify({ ok: true, ...payload }), isError: false, affectedIds }
+function ok(
+  payload: Record<string, unknown>,
+  mutated: boolean,
+  affectedIds: string[] = [],
+): ToolExecution {
+  return {
+    content: JSON.stringify({ ok: true, ...payload }),
+    isError: false,
+    affectedIds,
+    mutated,
+  }
 }
 
 function fail(payload: Record<string, unknown>): ToolExecution {
-  return { content: JSON.stringify({ ok: false, ...payload }), isError: true, affectedIds: [] }
+  return {
+    content: JSON.stringify({ ok: false, ...payload }),
+    isError: true,
+    affectedIds: [],
+    mutated: false,
+  }
 }
 
 // '24:00' es válido en el dominio, pero el <input type="time"> del formulario
@@ -208,7 +231,7 @@ export async function executeAgentTool(
     case 'create_item': {
       const result = await routine.createItem(userId, toCreateInput(input))
       if (!result.ok) return fail(result)
-      return ok({ item: compactItem(result.item) }, [result.item.id])
+      return ok({ item: compactItem(result.item) }, true, [result.item.id])
     }
 
     case 'update_item': {
@@ -220,13 +243,14 @@ export async function executeAgentTool(
       if ('category_id' in input) patch.categoryId = input.category_id
       const result = await routine.updateItem(userId, input.item_id, patch)
       if (!result.ok) return fail(result)
-      return ok({ item: compactItem(result.item) }, [result.item.id])
+      return ok({ item: compactItem(result.item) }, true, [result.item.id])
     }
 
     case 'delete_items': {
       const result = await routine.deleteItems(userId, input.item_ids)
       if (!result.ok) return fail(result)
-      return ok({ deleted: result.deleted })
+      // ids que ya no existían: termina bien sin borrar nada
+      return ok({ deleted: result.deleted }, result.deleted > 0)
     }
 
     case 'clear_day': {
@@ -237,6 +261,8 @@ export async function executeAgentTool(
           updated: result.updated.map((item) => ({ id: item.id, days: item.days })),
           deleted: result.deletedIds.length,
         },
+        // un día que ya estaba vacío no escribe nada
+        result.updated.length > 0 || result.deletedIds.length > 0,
         result.updated.map((item) => item.id),
       )
     }
@@ -247,6 +273,7 @@ export async function executeAgentTool(
       if (!result.ok) return fail(result)
       return ok(
         { created: result.items.map(compactItem) },
+        result.items.length > 0,
         result.items.map((item) => item.id),
       )
     }
@@ -258,7 +285,7 @@ export async function executeAgentTool(
       const result = await routine.setCompleted(userId, input.item_id, input.done, now, null)
       if (!result.ok) return fail(result)
       const itemId = typeof input.item_id === 'string' ? [input.item_id] : []
-      return ok({ done: result.done }, itemId)
+      return ok({ done: result.done }, true, itemId)
     }
 
     default:

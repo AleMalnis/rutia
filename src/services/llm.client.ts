@@ -78,11 +78,21 @@ export class LLMError extends Error {
 
 // Un proveedor colgado no puede comerse el presupuesto de la función
 // serverless: los SDKs traen timeouts de 10 min y reintentos propios, muy por
-// encima de lo que Vercel permite. El corte real lo pone el signal compartido
-// de AgentService; los reintentos se acotan para que un fallo transitorio no
-// multiplique la espera.
-const MAX_RETRIES = 1
-const GOOGLE_ATTEMPTS = MAX_RETRIES + 1
+// encima de lo que Vercel permite.
+//
+// Anthropic y OpenAI se quedan SIN reintentos a propósito. Su espera entre
+// intentos es un setTimeout que no mira el signal, y el valor de la cabecera
+// `retry-after` no está acotado: ante un 429 con `retry-after: 30` duermen
+// esos 30 s enteros aunque la fecha límite haya vencido hace rato, y para
+// entonces la plataforma ya ha matado la función. Con cero reintentos la
+// única espera es el fetch, que el signal sí aborta; a cambio, un fallo
+// transitorio se le cuenta al usuario en vez de reintentarse solo, que en un
+// chat con tope de tiempo es el intercambio correcto (un reintento a los 30 s
+// no llegaría a tiempo de todos modos).
+const STAINLESS_MAX_RETRIES = 0
+// Google sí comprueba el signal entre reintentos y su espera es de ~1 s, así
+// que ahí un reintento sigue mereciendo la pena.
+const GOOGLE_ATTEMPTS = 2
 
 /** Distingue «lo hemos cortado nosotros» de un fallo real del proveedor. */
 function abortedFailure(signal: AbortSignal | undefined, provider: string): LLMError | null {
@@ -160,7 +170,7 @@ function toAnthropicMessages(turns: LLMTurn[]): Anthropic.MessageParam[] {
 
 function createAnthropicClient(apiKey: string): LLMClient {
   // el cliente se construye UNA vez por petición, no en cada ronda del bucle
-  const client = new Anthropic({ apiKey, maxRetries: MAX_RETRIES })
+  const client = new Anthropic({ apiKey, maxRetries: STAINLESS_MAX_RETRIES })
   return {
     async complete({ system, turns, tools, signal }) {
       try {
@@ -249,7 +259,7 @@ export function toOpenAIInput(turns: LLMTurn[]): OpenAI.Responses.ResponseInputI
 }
 
 function createOpenAIClient(apiKey: string): LLMClient {
-  const client = new OpenAI({ apiKey, maxRetries: MAX_RETRIES })
+  const client = new OpenAI({ apiKey, maxRetries: STAINLESS_MAX_RETRIES })
   return {
     async complete({ system, turns, tools, signal }) {
       try {
