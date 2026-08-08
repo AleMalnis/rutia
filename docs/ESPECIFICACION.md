@@ -108,7 +108,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - `/login` y `/registro` — formularios mínimos, mensaje de error claro.
 - `/app` — pantalla única de trabajo:
   - **Escritorio:** calendario semanal (columnas L–D, filas por horas, 06:00–24:00 por defecto) + panel derecho con pestañas **Chat** y **Hoy**.
-  - **Móvil:** vista **«Hoy»** como pantalla principal (lista con checks), calendario semanal deslizable y chat como panel flotante.
+  - **Móvil:** vista **«Hoy»** como pantalla principal (lista con checks) y calendario semanal deslizable. En v1 el chat comparte el mismo panel de pestañas **Chat**/**Hoy** también en móvil; el panel flotante queda como pulido futuro.
 - Primera visita: el agente saluda y ofrece crear la rutina inicial (onboarding conversacional, sin tutorial).
 
 **Detalles de acabado:**
@@ -159,8 +159,8 @@ La rutina es una **plantilla semanal recurrente**: los ítems viven en días-de-
 
 | Herramienta | Parámetros | Efecto |
 |---|---|---|
-| `create_item` | `title, kind ('block'\|'reminder'), days[0-6][], start ("HH:MM"), end? (obligatorio si block), category?, detail?, notes?` | Crea un ítem recurrente |
-| `update_item` | `item_id, campos opcionales (title, kind, days, start, end, category, detail, notes)` | Edita, mueve o cambia el detalle de un ítem |
+| `create_item` | `title, kind ('block'\|'reminder'), days[0-6][], start ("HH:MM"), end? (obligatorio si block), category_id? (UUID de la lista de categorías del contexto), detail?, notes?` | Crea un ítem recurrente |
+| `update_item` | `item_id, campos opcionales (title, kind, days, start, end, category_id, detail, notes)` | Edita, mueve o cambia el detalle de un ítem |
 | `delete_items` | `item_ids[]` | Borra uno o varios ítems |
 | `clear_day` | `day, franja opcional (from, to)` | Quita ese día del array de los ítems afectados; si un ítem se queda sin días, se borra |
 | `bulk_create_items` | `items[]` | Rutina inicial o cambios masivos |
@@ -180,6 +180,9 @@ Fecha actual: {{FECHA}} ({{DIA_SEMANA}}). Zona horaria del usuario: {{TIMEZONE}}
 
 RUTINA ACTUAL DEL USUARIO:
 {{RUTINA_SERIALIZADA}}  // ítems con id, kind, days, horas, título, categoría, detail
+
+CATEGORÍAS DISPONIBLES (usa su id como category_id):
+{{CATEGORIAS}}  // id y nombre de las categorías del usuario
 
 CHECKS DE HOY:
 {{COMPLETADOS_HOY}}  // item_id → hecho / pendiente
@@ -340,4 +343,5 @@ Señalados por revisión (CodeRabbit, PR #6) y aplazados en v1 por decisión de 
 3. **Prettier en CI** — §9 lo promete pero aún no está en el repo (ni dependencia ni config). Aplazado: introducirlo exige un formateo inicial de todo el código en un chore dedicado, para no mezclar churn de formato en PRs funcionales. Implementación prevista: `prettier` como devDependency + `format:check` en el workflow de CI entre Lint y Typecheck.
 4. **Apariencia: superficies fuera del wrapper** — implementada en §4, pero el tema vive en el `<main>` de `/app`: el `<html>`/`<body>` y el error boundary quedan fuera, así que con un modo forzado contrario al del sistema pueden asomar el color del sistema en el overscroll móvil, la scrollbar raíz y la pantalla de error. Solución prevista si molesta: persistir la apariencia también en una cookie y estampar los data-attrs en el `<html>` desde el layout raíz.
 5. **`preferences` es leer-mezclar-escribir no atómico** — con `appearance` como única clave el peor caso es last-write-wins entre pestañas. Al añadir una segunda clave hay que pasar a merge atómico en BD (`preferences = preferences || $1` vía función SQL + rpc). Anotado también en `profiles.repo.ts`.
-6. **`24:00` no es editable desde el formulario manual** — `endTimeSchema` acepta `24:00` (la rejilla de §4 llega ahí y Postgres lo admite), pero `<input type="time">` solo llega a 23:59: al abrir un ítem que termine a medianoche, el campo Fin sale vacío y, al ser obligatorio, bloquea el guardado. Hoy es latente porque ningún camino crea ese valor (el formulario no puede y el agente no existe todavía). Se resolverá al implementar el agente (§6.2), eligiendo entonces entre una casilla «hasta medianoche» en el formulario o normalizar a 23:59 en todo el dominio.
+6. **`24:00` no es editable desde el formulario manual** — `endTimeSchema` acepta `24:00` (la rejilla de §4 llega ahí y Postgres lo admite), pero `<input type="time">` solo llega a 23:59: al abrir un ítem que termine a medianoche, el campo Fin sale vacío y, al ser obligatorio, bloquea el guardado. Sigue siendo latente: el agente (el único camino que podría crear ese valor) normaliza `24:00` → `23:59` en su frontera (`agent.tools.ts`), así que ningún ítem real lo lleva. Si algún día hace falta la medianoche exacta, la opción es la casilla «hasta medianoche» en el formulario.
+7. **Rate limit del chat sin transacción** — `/api/chat` cuenta filas de `chat_messages` en los últimos 5 minutos antes de escribir (spec §8): dos peticiones simultáneas pueden pasar ambas el conteo y colar un par de mensajes por encima de 20. Aplazado: el exceso realista es de unidades y el tope de gasto vive también en el panel del proveedor. Implementación prevista si hiciera falta: función SQL que cuente e inserte en la misma transacción (o token bucket en BD).

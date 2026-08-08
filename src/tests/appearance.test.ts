@@ -26,6 +26,9 @@ function mkDeps(initialPreferences: Record<string, unknown> = {}) {
     async insert() {
       throw new Error('no usado')
     },
+    async insertMany() {
+      throw new Error('no usado')
+    },
     async update() {
       return null
     },

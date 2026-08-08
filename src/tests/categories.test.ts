@@ -24,6 +24,9 @@ function mkDeps(existing: Category[] = []) {
     async insert() {
       throw new Error('no usado')
     },
+    async insertMany() {
+      throw new Error('no usado')
+    },
     async update() {
       return null
     },

@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import { RoutineBoard } from '@/components/routine-board'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
+import { createChatRepo } from '@/repositories/chat.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
+import { createAgentService } from '@/services/agent.service'
+import { createAnthropicClient } from '@/services/llm.client'
 import { createRoutineService } from '@/services/routine.service'
 import { logout } from './actions'
 
@@ -29,11 +32,19 @@ export default async function AppPage() {
     profiles: createProfilesRepo(supabase),
     categories: createCategoriesRepo(supabase),
   })
-  const [{ items }, categories, today, appearance] = await Promise.all([
+  // el LLM es perezoso: history() no lo toca, así que la página carga aunque
+  // la API key no esté configurada (solo fallaría el envío de mensajes)
+  const agentService = createAgentService({
+    routine: routineService,
+    chat: createChatRepo(supabase),
+    llm: createAnthropicClient(),
+  })
+  const [{ items }, categories, today, appearance, chatHistory] = await Promise.all([
     routineService.listItems(userId),
     routineService.listCategories(userId),
     routineService.listToday(userId, new Date()),
     routineService.getAppearance(userId),
+    agentService.history(userId),
   ])
 
   return (
@@ -54,6 +65,11 @@ export default async function AppPage() {
         todayWeekday={today.weekday}
         todayDate={today.date}
         appearance={appearance}
+        chatMessages={chatHistory.map((message) => ({
+          id: message.id,
+          role: message.role,
+          content: message.content,
+        }))}
       >
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>

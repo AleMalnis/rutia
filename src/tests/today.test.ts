@@ -112,6 +112,9 @@ describe('RoutineService: hoy y completado', () => {
       async insert() {
         throw new Error('no usado')
       },
+      async insertMany() {
+        throw new Error('no usado')
+      },
       async update() {
         throw new Error('no usado')
       },

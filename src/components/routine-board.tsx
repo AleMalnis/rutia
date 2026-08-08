@@ -1,9 +1,11 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { AppearanceDialog } from '@/components/appearance-dialog'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
+import { ChatPanel, type ChatUiMessage } from '@/components/chat-panel'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { TodayPanel, type TodayEntry } from '@/components/today-panel'
 import { WeekCalendar } from '@/components/week-calendar'
@@ -25,6 +27,7 @@ export function RoutineBoard({
   todayWeekday,
   todayDate,
   appearance,
+  chatMessages,
   children,
 }: {
   items: RoutineItem[]
@@ -33,12 +36,37 @@ export function RoutineBoard({
   todayWeekday: number
   todayDate: string
   appearance: Appearance
+  chatMessages: ChatUiMessage[]
   // la cabecera de la página se recibe como slot para que quede DENTRO del
   // contenedor inert: si no, con el diálogo abierto se puede tabular hasta
   // «Cerrar sesión» y cerrar sesión perdiendo lo que se estaba editando
   children?: React.ReactNode
 }) {
   const [dialog, setDialog] = useState<Dialog>(null)
+  const router = useRouter()
+
+  // Sin rutina, el chat delante: es la puerta de entrada del onboarding
+  // (Must #8); con rutina, el panel «Hoy» sigue siendo la vista principal.
+  const [tab, setTab] = useState<'today' | 'chat'>(items.length === 0 ? 'chat' : 'today')
+
+  // Ítems recién tocados por el agente (Must #6): se resaltan ~2 s en el
+  // calendario tras refrescar los datos.
+  const [highlightIds, setHighlightIds] = useState<ReadonlySet<string>>(new Set())
+  const highlightTimer = useRef<number | null>(null)
+
+  function handleAgentMutation(affectedItemIds: string[]) {
+    router.refresh()
+    setHighlightIds(new Set(affectedItemIds))
+    if (highlightTimer.current != null) window.clearTimeout(highlightTimer.current)
+    highlightTimer.current = window.setTimeout(() => setHighlightIds(new Set()), 2500)
+  }
+
+  useEffect(
+    () => () => {
+      if (highlightTimer.current != null) window.clearTimeout(highlightTimer.current)
+    },
+    [],
+  )
 
   // El disparador se captura AQUÍ, en el clic: cuando el diálogo monta, el
   // fondo ya es inert y el navegador ha movido el foco a body, así que un
@@ -111,19 +139,45 @@ export function RoutineBoard({
         {/* «Hoy» va primero en el DOM porque en móvil es la vista principal
             (spec §4): así el orden de lectura y de tabulación coincide con lo
             que se ve. Solo en escritorio pasa a la columna derecha. */}
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_18rem] lg:items-start">
-          <div className="lg:order-2">
-            <TodayPanel
-              entries={todayEntries}
-              weekday={todayWeekday}
-              date={todayDate}
-              categories={categories}
-              onItemClick={openItem}
-            />
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_20rem] lg:items-start">
+          <div className="flex flex-col gap-2 lg:order-2">
+            {/* Ambos paneles quedan montados y se alternan con hidden: así el
+                chat no pierde la conversación al mirar «Hoy», y el panel
+                «Hoy» sigue reportando la zona horaria del navegador. */}
+            <div className="flex gap-1 rounded-lg border border-edge bg-card p-1">
+              <PanelTab active={tab === 'chat'} onClick={() => setTab('chat')}>
+                Chat
+              </PanelTab>
+              <PanelTab active={tab === 'today'} onClick={() => setTab('today')}>
+                Hoy
+              </PanelTab>
+            </div>
+
+            <div hidden={tab !== 'chat'}>
+              <ChatPanel
+                initialMessages={chatMessages}
+                routineEmpty={items.length === 0}
+                onMutated={handleAgentMutation}
+              />
+            </div>
+            <div hidden={tab !== 'today'}>
+              <TodayPanel
+                entries={todayEntries}
+                weekday={todayWeekday}
+                date={todayDate}
+                categories={categories}
+                onItemClick={openItem}
+              />
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-xl border border-edge bg-card lg:order-1">
-            <WeekCalendar items={items} categories={categories} onItemClick={openItem} />
+            <WeekCalendar
+              items={items}
+              categories={categories}
+              highlightIds={highlightIds}
+              onItemClick={openItem}
+            />
           </div>
         </div>
 
@@ -153,5 +207,31 @@ export function RoutineBoard({
         <AppearanceDialog appearance={appearance} onClose={close} />
       )}
     </>
+  )
+}
+
+// Alternador simple con aria-pressed: dos vistas del mismo panel lateral. No
+// se usa el patrón ARIA de tabs porque exige navegación con flechas que aquí
+// no aporta nada con solo dos opciones.
+function PanelTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`flex-1 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+        active ? 'bg-accent text-accent-ink' : 'text-ink-2 hover:bg-edge/40'
+      }`}
+    >
+      {children}
+    </button>
   )
 }

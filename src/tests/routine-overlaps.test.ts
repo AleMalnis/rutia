@@ -181,6 +181,9 @@ describe('RoutineService con repo en memoria', () => {
         calls.insert += 1
         return mkItem({ ...item, end: item.end ?? null })
       },
+      async insertMany(_userId, items) {
+        return items.map((item) => mkItem({ ...item, end: item.end ?? null }))
+      },
       async update(_userId, id, item) {
         calls.update += 1
         return mkItem({ ...item, id, end: item.end ?? null })
