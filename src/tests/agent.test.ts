@@ -694,6 +694,63 @@ describe('AgentService.chat (LLM mockeado, spec §9)', () => {
     expect(chat.persisted.at(-1)?.role).toBe('assistant')
   })
 
+  it('una respuesta vacía truncada no se disfraza de «Hecho.»', async () => {
+    const { agent, chat } = mkAgent({
+      script: [{ text: '', toolCalls: [], truncated: true }],
+    })
+
+    const result = await agent.chat(USER, 'móntame la rutina entera', NOW)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.reply).toContain('sin espacio')
+    expect(result.reply).not.toBe('Hecho.')
+    expect(chat.persisted[1].content).toContain('sin espacio')
+  })
+
+  it('una respuesta vacía sin herramientas pide reformular, no afirma éxito', async () => {
+    const { agent } = mkAgent({ script: [{ text: '', toolCalls: [] }] })
+    const result = await agent.chat(USER, 'hola', NOW)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.reply).not.toBe('Hecho.')
+  })
+
+  it('si falla la persistencia del reply tras una mutación, la petición NO se cae', async () => {
+    const { deps, items } = mkDeps()
+    const routine = createRoutineService(deps)
+    const chat = mkChatRepo()
+    // el insert del assistant (2º insert) revienta: la UI aún debe refrescar
+    const originalInsert = chat.repo.insert.bind(chat.repo)
+    let inserts = 0
+    chat.repo.insert = async (userId, message) => {
+      inserts += 1
+      if (inserts > 1) throw new Error('Supabase caído')
+      return originalInsert(userId, message)
+    }
+    const llm = mkLLM([
+      {
+        text: '',
+        toolCalls: [
+          {
+            id: 't1',
+            name: 'create_item',
+            input: { title: 'Pilates', kind: 'reminder', days: [5], start: '11:00' },
+          },
+        ],
+      },
+      { text: 'He añadido Pilates.', toolCalls: [] },
+    ])
+    const agent = createAgentService({ routine, chat: chat.repo, llm: llm.llm })
+
+    const result = await agent.chat(USER, 'ponme pilates', NOW)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.mutated).toBe(true)
+    expect(result.affectedItemIds).toEqual([items.store[0].id])
+  })
+
   it('fallo del proveedor sin mutaciones: el error sube tal cual a la ruta', async () => {
     const { agent } = mkAgent({ script: [new Error('proveedor caído')] })
     await expect(agent.chat(USER, 'hola', NOW)).rejects.toThrow('proveedor caído')

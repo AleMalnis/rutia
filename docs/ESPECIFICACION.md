@@ -45,7 +45,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 2. Vista de **calendario semanal** (lunes–domingo × horas) con bloques coloreados por categoría y **chips** para los recordatorios puntuales.
 3. Ítems con **recurrencia multi-día** (`days[]`): un solo ítem puede vivir en varios días («todos los días», «L-V»).
 4. **CRUD manual básico** de ítems desde la UI (crear, editar, borrar) como alternativa al chat.
-5. **Chat con el agente** que modifica la rutina mediante herramientas: crear, editar/mover, borrar, vaciar día, creación masiva y marcar completado.
+5. **Chat con el agente** que modifica la rutina mediante herramientas: crear, editar/mover, borrar, vaciar día, creación masiva y marcar completado. Funciona en modo **BYOK multi-proveedor**: cada usuario pega su propia API key (Anthropic, OpenAI o Google) en **Ajustes → IA** y la inferencia corre a su cargo; sin clave configurada, el chat lo explica y ofrece configurarla (o usar el modo MCP cuando exista). No hay clave del servidor: coste de inferencia cero para la app.
 6. Cambios del agente **reflejados inmediatamente** en el calendario, con resaltado breve de los ítems afectados.
 7. **Generación de rutina inicial** a partir de una descripción libre («trabajo de 9 a 17, gym 3 días, medicación a las 9 y a las 21…»).
 8. **Detección de solapes entre bloques**: el agente avisa del conflicto y propone alternativa antes de pisar nada (los recordatorios puntuales no generan conflicto).
@@ -69,7 +69,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 ### Could — extras si sobra tiempo
 - Excepciones para una semana concreta (sin romper la plantilla recurrente).
 - Modo MCP avanzado: autenticación **OAuth 2.1** y refresco del calendario **en tiempo real** (Supabase Realtime) mientras chateas desde tu cliente externo.
-- Ajuste **BYOK** en el chat integrado: el usuario puede poner su propia API key (pago por uso; no es su suscripción).
+- Validación en vivo de la API key al guardarla (botón «Probar» con una llamada mínima al proveedor).
 - Lista de la compra generada desde las comidas que el usuario ha dictado.
 - Avisos del navegador mientras la app está abierta (Notification API).
 - Exportar en formato calendario (.ics), modo oscuro de la app, PWA instalable, streaming de respuestas.
@@ -118,6 +118,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - **Apariencia personalizable**: modo claro/oscuro/automático, un **tema de superficie** entre 5 presets validados de contraste (zinc, pizarra, arena, bosque, uva — cada uno define fondo de página, tarjeta, bordes, tinta y acento vía variables CSS, en claro y oscuro) y **fuente** (sistema, serif o redondeada, autoalojadas con `next/font`). Guardada en `profiles.preferences.appearance`; se aplica solo dentro de `/app` (login/registro quedan en el tema neutro). No hay pickers libres en v1: solo combinaciones que pasan la validación, y los 8 colores de categoría están revalidados contra cada superficie.
 - Los ítems muestran su detalle como subtítulo (p. ej. «Cena · Pasta», «Medicación · Enalapril 10 mg»).
 - Indicador «pensando…» mientras el agente trabaja; mensajes del agente breves y accionables.
+- **Ajustes → IA (BYOK)**: el usuario elige proveedor (Anthropic, OpenAI o Google) y pega su API key. La clave nunca se vuelve a mostrar (solo proveedor y últimos 4 caracteres), se puede reemplazar o borrar, y sin clave el chat muestra un aviso claro con acceso directo a estos ajustes.
 
 **Exportación (lámina):** botón «Exportar» en la cabecera del calendario. Genera una **lámina dedicada** —un componente aparte renderizado fuera de pantalla a resolución fija (p. ej. 1920×1080)— con la semana completa, título y leyenda de categorías, convertida a PNG en el navegador con una librería tipo `html-to-image`. La misma lámina sirve como **vista imprimible** (`@media print`, ocultando chat y paneles). El formato vertical para móvil es la variante del *Should*.
 
@@ -134,6 +135,7 @@ La rutina es una **plantilla semanal recurrente**: los ítems viven en días-de-
 | `routine_items` | `id`, `user_id`, `title`, `category_id`, `kind` ('block' \| 'reminder'), `days smallint[]` (0=lunes … 6=domingo), `start_time` (time), `end_time` (time, null si reminder), `detail` (texto corto: plato, dosis…), `notes`, `created_at`, `updated_at` | Check: si `kind='block'` entonces `end_time > start_time`; `days` no vacío |
 | `completions` | `id`, `user_id`, `item_id`, `date` (date), `completed_at` | Unique (`item_id`, `date`) — un check por ítem y día |
 | `chat_messages` | `id`, `user_id`, `role` ('user' \| 'assistant'), `content`, `tool_calls jsonb`, `created_at` | Historial del chat |
+| `llm_settings` | `user_id` (PK, = auth.users.id), `provider` ('anthropic' \| 'openai' \| 'google'), `api_key_encrypted`, `created_at`, `updated_at` | Clave BYOK cifrada (AES-256-GCM con secreto del servidor); una fila por usuario |
 | `routine_snapshots` (Should) | `id`, `user_id`, `data jsonb`, `created_at` | Estado previo para «deshacer» |
 
 **RLS obligatoria en todas las tablas:** política `user_id = auth.uid()` para SELECT/INSERT/UPDATE/DELETE. Sin excepciones.
@@ -203,11 +205,12 @@ REGLAS:
 13. Solo gestionas la rutina. Si te piden otra cosa, redirige con amabilidad.
 ```
 
-### 6.4 Proveedor de IA (puerta A: chat integrado)
+### 6.4 Proveedor de IA (puerta A: chat integrado, BYOK multi-proveedor)
 
-- **Un solo proveedor en el MVP**, elegido al inicio: Anthropic (`claude-sonnet-4-6`) u OpenAI (modelo equivalente con tool use fiable). Ambos soportan el patrón; elige el que te resulte más cómodo de facturación.
-- La llamada vive detrás de una interfaz propia (`AgentService` → `LLMClient`), de modo que cambiar de proveedor sea tocar un solo archivo.
-- API key **solo en el servidor**, vía variable de entorno. Presupuesto estimado: céntimos por conversación; poner tope de gasto en el panel del proveedor.
+- El chat integrado funciona **exclusivamente con la API key del propio usuario** (*bring your own key*): no hay clave del servidor ni coste de inferencia para la app. Sin clave configurada, el chat lo explica con un mensaje claro y ofrece dos salidas: pegar una clave de desarrollador en **Ajustes → IA** (pago por uso contra su cuenta de API) o, cuando exista, el **modo MCP** (§6.5) con su propia suscripción. La suscripción de consumidor (ChatGPT Plus, Claude Pro) NO se puede consumir vía API: eso es exactamente lo que resuelve el modo MCP.
+- **Tres proveedores soportados**, cada uno tras la interfaz `LLMClient` (añadir otro = tocar un solo archivo): **Anthropic** (`claude-sonnet-4-6`, Messages API), **OpenAI** (`gpt-5.6-terra`, Responses API) y **Google** (`gemini-2.5-flash`, `generateContent`). Los tres soportan tool use fiable; el modelo por defecto de cada proveedor es una constante del código.
+- La clave se guarda **cifrada en reposo** (AES-256-GCM con el secreto de servidor `LLM_KEY_SECRET`), nunca vuelve al navegador (solo proveedor + últimos 4 caracteres), es reemplazable y revocable desde Ajustes y jamás aparece en logs.
+- Tope de gasto: el que el usuario tenga configurado en el panel de su proveedor. El rate limit de §8 sigue aplicando: también protege la clave del usuario.
 
 ### 6.5 Modo MCP: la segunda puerta (Should)
 
@@ -285,7 +288,8 @@ rutia/
 | Riesgo | Mitigación en RutIA |
 |---|---|
 | Control de acceso roto (A01) | RLS en todas las tablas + sesión verificada en cada server action |
-| Secretos expuestos (A02) | API keys solo en env del servidor; `.env.example` documentado; nada de claves en el cliente ni en Git |
+| Secretos expuestos (A02) | Secretos de la app solo en env del servidor; `.env.example` documentado; nada de claves en el cliente ni en Git |
+| Clave BYOK del usuario (A02) | Cifrada en reposo (AES-256-GCM, secreto `LLM_KEY_SECRET` solo en env del servidor); write-only hacia el cliente (solo proveedor + últimos 4); revocable desde Ajustes; nunca en logs |
 | Inyección (A03) | Consultas vía SDK de Supabase (parametrizadas) + validación Zod de toda entrada |
 | Diseño inseguro (A04) | Las herramientas del agente nunca reciben `user_id` del modelo; confirmación para borrados masivos |
 | Abuso / coste | Rate limiting por usuario en `/api/chat` (p. ej. 20 mensajes / 5 min) y tope de gasto en el proveedor |

@@ -22,10 +22,15 @@ type ChatApiPayload = {
 export function ChatPanel({
   initialMessages,
   routineEmpty,
+  llmConfigured,
+  onOpenSettings,
   onMutated,
 }: {
   initialMessages: ChatUiMessage[]
   routineEmpty: boolean
+  /** BYOK (spec §6.4): sin clave propia configurada el chat no funciona. */
+  llmConfigured: boolean
+  onOpenSettings: () => void
   onMutated: (affectedItemIds: string[]) => void
 }) {
   const [messages, setMessages] = useState<ChatUiMessage[]>(initialMessages)
@@ -111,6 +116,23 @@ export function ChatPanel({
             <span className="sr-only">RutIA está escribiendo</span>
           </p>
         )}
+
+        {/* BYOK: sin clave configurada, el chat lo explica y lleva a Ajustes */}
+        {!llmConfigured && (
+          <div className="self-start rounded-lg border border-edge bg-page px-2.5 py-2 text-sm text-ink">
+            <p>
+              Para chatear necesito tu propia clave de API (Anthropic, OpenAI o Google): la
+              inferencia corre por tu cuenta, de pago por uso.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="mt-2 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+            >
+              Configurar IA
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -139,13 +161,14 @@ export function ChatPanel({
           }}
           rows={2}
           maxLength={2000}
-          placeholder="Escribe a RutIA…"
+          placeholder={llmConfigured ? 'Escribe a RutIA…' : 'Configura tu clave de API para chatear'}
           aria-label="Mensaje para RutIA"
-          className="min-h-9 flex-1 resize-y rounded-md border border-edge bg-page px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-3 focus:outline-2 focus:outline-accent"
+          disabled={!llmConfigured}
+          className="min-h-9 flex-1 resize-y rounded-md border border-edge bg-page px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-3 focus:outline-2 focus:outline-accent disabled:opacity-60"
         />
         <button
           type="submit"
-          disabled={pending || draft.trim().length === 0}
+          disabled={pending || !llmConfigured || draft.trim().length === 0}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85 disabled:opacity-50"
         >
           Enviar

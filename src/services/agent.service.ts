@@ -34,7 +34,9 @@ export type AgentChatResult =
 export type AgentDeps = {
   routine: RoutineService
   chat: ChatRepo
-  llm: LLMClient
+  // null cuando solo se necesita el historial (p. ej. al renderizar la
+  // página): la clave BYOK del usuario puede no existir todavía
+  llm: LLMClient | null
 }
 
 // ── Serialización del contexto (spec §6.3) ───────────────────────────────────
@@ -100,6 +102,11 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
     },
 
     async chat(userId: string, rawMessage: unknown, now: Date): Promise<AgentChatResult> {
+      if (llm == null) {
+        // programación defensiva: la ruta resuelve la clave BYOK antes de
+        // llegar aquí; sin LLM solo tiene sentido history()
+        throw new Error('AgentService construido sin LLMClient.')
+      }
       const parsed = chatMessageSchema.safeParse(rawMessage)
       if (!parsed.success) {
         return {
@@ -167,10 +174,28 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
       const executed: { tool: string; input: Record<string, unknown>; ok: boolean }[] = []
       const affected = new Set<string>()
       let reply = ''
+      let lastTruncated = false
+
+      // Perder la persistencia del reply es preferible a un 500 con
+      // mutaciones ya aplicadas: la UI necesita el payload para refrescar y
+      // resaltar. Se registra y la conversación sigue.
+      async function persistAssistant(content: string): Promise<void> {
+        try {
+          await chat.insert(userId, {
+            role: 'assistant',
+            content,
+            toolCalls: executed.length > 0 ? executed : null,
+          })
+        } catch (error) {
+          const name = error instanceof Error ? error.name : 'Error'
+          console.error('[agent-persist]', name, error instanceof Error ? error.message : String(error))
+        }
+      }
 
       try {
         for (let round = 1; round <= MAX_ROUNDS; round++) {
           const response = await llm.complete({ system, turns, tools: AGENT_TOOLS })
+          lastTruncated = response.truncated === true
 
           if (response.toolCalls.length === 0) {
             reply = response.text.trim()
@@ -229,6 +254,7 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
             for (const id of execution.affectedIds) affected.add(id)
             results.push({
               toolCallId: call.id,
+              name: call.name,
               content: execution.content,
               isError: execution.isError,
             })
@@ -244,7 +270,7 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
         console.error('[agent-loop]', name, error instanceof Error ? error.message : String(error))
         reply =
           'He aplicado una parte de los cambios, pero me he quedado a medias por un error del asistente. Revisa el calendario y dime si sigo.'
-        await chat.insert(userId, { role: 'assistant', content: reply, toolCalls: executed })
+        await persistAssistant(reply)
         return {
           ok: true,
           reply,
@@ -253,13 +279,21 @@ export function createAgentService({ routine, chat, llm }: AgentDeps) {
         }
       }
 
-      if (reply.length === 0) reply = 'Hecho.'
+      // una respuesta vacía nunca se disfraza de éxito: si el proveedor la
+      // cortó (tokens, seguridad), se dice; si no hubo ni herramientas, se
+      // pide reformular en vez de afirmar un «Hecho.» que no ocurrió
+      if (reply.length === 0) {
+        if (lastTruncated) {
+          reply =
+            'Me he quedado sin espacio al preparar la respuesta. Pídemelo en pasos más pequeños, por favor.'
+        } else if (executed.some((call) => call.ok)) {
+          reply = 'Hecho.'
+        } else {
+          reply = 'No he podido preparar una respuesta. ¿Puedes decírmelo de otra forma?'
+        }
+      }
 
-      await chat.insert(userId, {
-        role: 'assistant',
-        content: reply,
-        toolCalls: executed.length > 0 ? executed : null,
-      })
+      await persistAssistant(reply)
 
       return {
         ok: true,

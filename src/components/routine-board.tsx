@@ -7,9 +7,11 @@ import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ChatPanel, type ChatUiMessage } from '@/components/chat-panel'
 import { ItemFormDialog } from '@/components/item-form-dialog'
+import { LlmSettingsDialog } from '@/components/llm-settings-dialog'
 import { TodayPanel, type TodayEntry } from '@/components/today-panel'
 import { WeekCalendar } from '@/components/week-calendar'
 import type { Appearance } from '@/lib/appearance'
+import type { LlmKeyStatusView } from '@/lib/llm-providers'
 import type { Category, RoutineItem } from '@/lib/schemas'
 
 // Dueño del estado de los diálogos: el calendario y la leyenda son
@@ -18,6 +20,7 @@ type Dialog =
   | { type: 'item'; item: RoutineItem | null }
   | { type: 'categories' }
   | { type: 'appearance' }
+  | { type: 'ia' }
   | null
 
 export function RoutineBoard({
@@ -28,6 +31,7 @@ export function RoutineBoard({
   todayDate,
   appearance,
   chatMessages,
+  llmStatus: initialLlmStatus,
   children,
 }: {
   items: RoutineItem[]
@@ -37,6 +41,7 @@ export function RoutineBoard({
   todayDate: string
   appearance: Appearance
   chatMessages: ChatUiMessage[]
+  llmStatus: LlmKeyStatusView | null
   // la cabecera de la página se recibe como slot para que quede DENTRO del
   // contenedor inert: si no, con el diálogo abierto se puede tabular hasta
   // «Cerrar sesión» y cerrar sesión perdiendo lo que se estaba editando
@@ -48,6 +53,10 @@ export function RoutineBoard({
   // Sin rutina, el chat delante: es la puerta de entrada del onboarding
   // (Must #8); con rutina, el panel «Hoy» sigue siendo la vista principal.
   const [tab, setTab] = useState<'today' | 'chat'>(items.length === 0 ? 'chat' : 'today')
+
+  // Estado de la clave BYOK (spec §6.4): el diálogo lo actualiza al guardar o
+  // borrar, sin recargar la página.
+  const [llmStatus, setLlmStatus] = useState<LlmKeyStatusView | null>(initialLlmStatus)
 
   // Ítems recién tocados por el agente (Must #6): se resaltan ~2 s en el
   // calendario tras refrescar los datos.
@@ -121,6 +130,13 @@ export function RoutineBoard({
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => open({ type: 'ia' })}
+              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
+            >
+              IA
+            </button>
+            <button
+              type="button"
               onClick={() => open({ type: 'appearance' })}
               className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
             >
@@ -157,6 +173,8 @@ export function RoutineBoard({
               <ChatPanel
                 initialMessages={chatMessages}
                 routineEmpty={items.length === 0}
+                llmConfigured={llmStatus != null}
+                onOpenSettings={() => open({ type: 'ia' })}
                 onMutated={handleAgentMutation}
               />
             </div>
@@ -205,6 +223,10 @@ export function RoutineBoard({
 
       {dialog?.type === 'appearance' && (
         <AppearanceDialog appearance={appearance} onClose={close} />
+      )}
+
+      {dialog?.type === 'ia' && (
+        <LlmSettingsDialog status={llmStatus} onStatusChange={setLlmStatus} onClose={close} />
       )}
     </>
   )

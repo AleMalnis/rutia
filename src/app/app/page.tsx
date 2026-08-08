@@ -1,15 +1,32 @@
 import { redirect } from 'next/navigation'
 import { RoutineBoard } from '@/components/routine-board'
+import { SecretConfigError } from '@/lib/crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
+import { createLlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
 import { createAgentService } from '@/services/agent.service'
-import { createAnthropicClient } from '@/services/llm.client'
+import { createLlmSettingsService, type LlmSettingsService } from '@/services/llm-settings.service'
 import { createRoutineService } from '@/services/routine.service'
 import { logout } from './actions'
+
+// Un servidor sin LLM_KEY_SECRET (o con el secreto rotado) no debe tumbar la
+// página entera: el estado se pinta como «sin clave» y el problema real se
+// registra; el chat lo contará al primer mensaje.
+async function safeLlmStatus(settings: LlmSettingsService, userId: string) {
+  try {
+    return await settings.getStatus(userId)
+  } catch (error) {
+    if (error instanceof SecretConfigError) {
+      console.error(`AppPage llmStatus: ${error.name}: ${error.message}`)
+      return null
+    }
+    throw error
+  }
+}
 
 // /app: el calendario semanal con la rutina real del usuario, cargada en el
 // servidor vía RoutineService (la UI nunca toca Supabase directamente).
@@ -32,19 +49,21 @@ export default async function AppPage() {
     profiles: createProfilesRepo(supabase),
     categories: createCategoriesRepo(supabase),
   })
-  // el LLM es perezoso: history() no lo toca, así que la página carga aunque
-  // la API key no esté configurada (solo fallaría el envío de mensajes)
+  // la página solo necesita el historial: el LLMClient se construye por
+  // petición en /api/chat con la clave BYOK del usuario (spec §6.4)
   const agentService = createAgentService({
     routine: routineService,
     chat: createChatRepo(supabase),
-    llm: createAnthropicClient(),
+    llm: null,
   })
-  const [{ items }, categories, today, appearance, chatHistory] = await Promise.all([
+  const llmSettings = createLlmSettingsService({ repo: createLlmSettingsRepo(supabase) })
+  const [{ items }, categories, today, appearance, chatHistory, llmStatus] = await Promise.all([
     routineService.listItems(userId),
     routineService.listCategories(userId),
     routineService.listToday(userId, new Date()),
     routineService.getAppearance(userId),
     agentService.history(userId),
+    safeLlmStatus(llmSettings, userId),
   ])
 
   return (
@@ -70,6 +89,7 @@ export default async function AppPage() {
           role: message.role,
           content: message.content,
         }))}
+        llmStatus={llmStatus}
       >
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>

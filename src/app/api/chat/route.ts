@@ -1,23 +1,30 @@
 import { NextResponse } from 'next/server'
+import { SecretConfigError } from '@/lib/crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
+import { createLlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
 import { createAgentService } from '@/services/agent.service'
-import { createAnthropicClient, LLMError } from '@/services/llm.client'
+import { createLlmSettingsService } from '@/services/llm-settings.service'
+import { createLLMClient, LLMError } from '@/services/llm.client'
 import { createRoutineService } from '@/services/routine.service'
 
 // POST /api/chat: el endpoint del agente (puerta A, spec §7.3). La UI envía
 // { message } y recibe { reply, affectedItemIds, mutated }. La sesión se
-// verifica aquí; el rate limit y el bucle agéntico viven en AgentService.
+// verifica aquí; el chat funciona SOLO con la clave BYOK del usuario (spec
+// §6.4): sin clave se devuelve code:'no_key' y la UI ofrece configurarla.
 
 // las respuestas llevan Set-Cookie de sesión: que ningún CDN las cachee
 const NO_STORE = { 'Cache-Control': 'private, no-store' }
 
-function jsonError(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status, headers: NO_STORE })
+function jsonError(message: string, status: number, code?: string) {
+  return NextResponse.json(
+    code == null ? { error: message } : { error: message, code },
+    { status, headers: NO_STORE },
+  )
 }
 
 export async function POST(request: Request) {
@@ -40,6 +47,17 @@ export async function POST(request: Request) {
         ? (body as { message?: unknown }).message
         : undefined
 
+    // la clave BYOK del usuario decide el proveedor; sin clave no hay chat
+    const llmSettings = createLlmSettingsService({ repo: createLlmSettingsRepo(supabase) })
+    const credentials = await llmSettings.getCredentials(userId)
+    if (credentials == null) {
+      return jsonError(
+        'Para usar el chat, configura tu clave de API en «IA» (o conecta por MCP cuando esté disponible).',
+        409,
+        'no_key',
+      )
+    }
+
     const routine = createRoutineService({
       items: createItemsRepo(supabase),
       completions: createCompletionsRepo(supabase),
@@ -49,7 +67,7 @@ export async function POST(request: Request) {
     const agent = createAgentService({
       routine,
       chat: createChatRepo(supabase),
-      llm: createAnthropicClient(),
+      llm: createLLMClient(credentials.provider, credentials.apiKey),
     })
 
     const result = await agent.chat(userId, message, new Date())
@@ -61,12 +79,24 @@ export async function POST(request: Request) {
       { headers: NO_STORE },
     )
   } catch (error) {
+    if (error instanceof SecretConfigError) {
+      console.error('[api/chat]', error.name, error.message)
+      return jsonError('El asistente no está configurado en este servidor.', 503)
+    }
     if (error instanceof LLMError) {
       // el kind basta para diagnosticar; el mensaje del proveedor no se
       // reenvía al cliente
       console.error('[api/chat]', error.name, error.kind, error.message)
-      if (error.kind === 'missing_key') {
-        return jsonError('El asistente no está configurado en este servidor.', 503)
+      if (error.kind === 'bad_key') {
+        return jsonError('Tu clave de API parece inválida o revocada. Revísala en «IA».', 400)
+      }
+      if (error.kind === 'quota') {
+        // condición permanente de la cuenta del usuario: decir «vuelve a
+        // intentarlo» solo le haría reintentar para siempre
+        return jsonError(
+          'Tu cuenta del proveedor de IA no tiene crédito o ha agotado su cuota. Revisa la facturación en el panel de tu proveedor.',
+          400,
+        )
       }
       return jsonError('El asistente no está disponible ahora mismo. Vuelve a intentarlo en un momento.', 502)
     }
