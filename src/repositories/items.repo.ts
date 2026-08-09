@@ -100,6 +100,17 @@ export function createItemsRepo(supabase: SupabaseClient) {
       return toItem(data as RoutineItemRow)
     },
 
+    // Lote en UNA sola sentencia: si algo falla no queda escritura parcial
+    // (requisito de bulk_create_items, spec §6.2).
+    async insertMany(userId: string, items: CreateRoutineItemInput[]): Promise<RoutineItem[]> {
+      const { data, error } = await supabase
+        .from('routine_items')
+        .insert(items.map((item) => ({ ...toRow(item), user_id: userId })))
+        .select(COLUMNS)
+      if (error) throw new RepoError(error.message, error.code)
+      return (data as RoutineItemRow[]).map(toItem)
+    },
+
     // Devuelve null si el ítem ya no existe (p. ej. borrado desde la otra
     // puerta entre la lectura y esta escritura): con .single() eso sería un
     // error PGRST116 en vez de un not_found manejable.

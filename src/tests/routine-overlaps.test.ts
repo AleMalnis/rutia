@@ -16,8 +16,12 @@ function deps(items: ItemsRepo) {
     async listItemIdsByDate() {
       return []
     },
-    async markDone() {},
-    async markUndone() {},
+    async markDone() {
+      return true
+    },
+    async markUndone() {
+      return true
+    },
   }
   const profiles: ProfilesRepo = {
     async getTimezone() {
@@ -180,6 +184,9 @@ describe('RoutineService con repo en memoria', () => {
       async insert(_userId, item) {
         calls.insert += 1
         return mkItem({ ...item, end: item.end ?? null })
+      },
+      async insertMany(_userId, items) {
+        return items.map((item) => mkItem({ ...item, end: item.end ?? null }))
       },
       async update(_userId, id, item) {
         calls.update += 1

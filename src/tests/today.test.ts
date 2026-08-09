@@ -112,6 +112,9 @@ describe('RoutineService: hoy y completado', () => {
       async insert() {
         throw new Error('no usado')
       },
+      async insertMany() {
+        throw new Error('no usado')
+      },
       async update() {
         throw new Error('no usado')
       },
@@ -125,11 +128,13 @@ describe('RoutineService: hoy y completado', () => {
       },
       async markDone(_u, itemId) {
         calls.markDone += 1
+        if (marked.has(itemId)) return false // ya estaba: no escribe
         marked.add(itemId)
+        return true
       },
       async markUndone(_u, itemId) {
         calls.markUndone += 1
-        marked.delete(itemId)
+        return marked.delete(itemId) // false si no estaba marcado
       },
     }
     const profiles: ProfilesRepo = {
@@ -193,7 +198,7 @@ describe('RoutineService: hoy y completado', () => {
       null,
     )
 
-    expect(result).toEqual({ ok: true, done: true })
+    expect(result).toEqual({ ok: true, done: true, changed: true })
     expect(calls.markDone).toBe(1)
     expect(marked.has(item.id)).toBe(true)
   })
@@ -203,10 +208,13 @@ describe('RoutineService: hoy y completado', () => {
     const { deps, marked } = mkDeps([item])
     const service = createRoutineService(deps)
 
-    await service.setCompleted(USER, item.id, true, NOW, null)
-    await service.setCompleted(USER, item.id, true, NOW, null)
+    const primera = await service.setCompleted(USER, item.id, true, NOW, null)
+    const segunda = await service.setCompleted(USER, item.id, true, NOW, null)
 
     expect(marked.size).toBe(1)
+    // la segunda no escribe: `changed` lo distingue, `ok` no
+    expect(primera).toEqual({ ok: true, done: true, changed: true })
+    expect(segunda).toEqual({ ok: true, done: true, changed: false })
   })
 
   it('la zona del perfil manda: el mismo instante puede ser otro día', async () => {
@@ -285,7 +293,8 @@ describe('RoutineService: hoy y completado', () => {
       null,
     )
 
-    expect(result).toEqual({ ok: true, done: false })
+    // desmarcar algo que no estaba marcado: correcto, pero sin escritura
+    expect(result).toEqual({ ok: true, done: false, changed: false })
     expect(marked.size).toBe(0)
   })
 

@@ -21,10 +21,12 @@ const GRID_COLS = 'grid grid-cols-[3.25rem_repeat(7,minmax(6rem,1fr))]'
 type Props = {
   items: RoutineItem[]
   categories: Category[]
+  /** Ítems recién tocados por el agente: se resaltan unos segundos (Must #6). */
+  highlightIds?: ReadonlySet<string>
   onItemClick: (item: RoutineItem) => void
 }
 
-export function WeekCalendar({ items, categories, onItemClick }: Props) {
+export function WeekCalendar({ items, categories, highlightIds, onItemClick }: Props) {
   const colorByCategory = new Map(categories.map((c) => [c.id, c.color]))
   const colorOf = (item: RoutineItem) =>
     (item.categoryId && colorByCategory.get(item.categoryId)) || null
@@ -93,6 +95,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
                       key={item.id}
                       item={item}
                       color={colorOf(item)}
+                      highlighted={highlightIds?.has(item.id) ?? false}
                       onClick={() => onItemClick(item)}
                     />
                   ))}
@@ -103,6 +106,7 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
                     item={item}
                     color={colorOf(item)}
                     bottom={bottoms[index]}
+                    highlighted={highlightIds?.has(item.id) ?? false}
                     onClick={() => onItemClick(item)}
                   />
                 ))}
@@ -118,10 +122,12 @@ export function WeekCalendar({ items, categories, onItemClick }: Props) {
 function BlockCard({
   item,
   color,
+  highlighted,
   onClick,
 }: {
   item: RoutineItem
   color: string | null
+  highlighted: boolean
   onClick: () => void
 }) {
   if (item.end == null) return null
@@ -132,7 +138,9 @@ function BlockCard({
     <button
       type="button"
       onClick={onClick}
-      className="cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left transition-opacity hover:opacity-80"
+      className={`cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left transition-[opacity,box-shadow] hover:opacity-80 ${
+        highlighted ? 'ring-2 ring-accent' : ''
+      }`}
       style={{
         ...categoryColorStyle(color),
         top: geometry.top,
@@ -161,11 +169,13 @@ function ReminderChip({
   item,
   color,
   bottom,
+  highlighted,
   onClick,
 }: {
   item: RoutineItem
   color: string | null
   bottom: number
+  highlighted: boolean
   onClick: () => void
 }) {
   // Cuelga ENCIMA de su línea de hora (translate-y-full) y anclado a la
@@ -175,7 +185,9 @@ function ReminderChip({
     <button
       type="button"
       onClick={onClick}
-      className="cat-mark absolute right-1 z-10 flex h-5 max-w-[75%] -translate-y-full cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-opacity hover:opacity-80"
+      className={`cat-mark absolute right-1 z-10 flex h-5 max-w-[75%] -translate-y-full cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-[opacity,box-shadow] hover:opacity-80 ${
+        highlighted ? 'ring-2 ring-accent' : ''
+      }`}
       style={{ ...categoryColorStyle(color), top: bottom, borderColor: 'var(--cat)' }}
       title={`${item.title} · ${item.start}${item.detail ? ` · ${item.detail}` : ''}`}
     >

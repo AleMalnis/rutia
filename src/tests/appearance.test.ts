@@ -26,6 +26,9 @@ function mkDeps(initialPreferences: Record<string, unknown> = {}) {
     async insert() {
       throw new Error('no usado')
     },
+    async insertMany() {
+      throw new Error('no usado')
+    },
     async update() {
       return null
     },
@@ -37,8 +40,12 @@ function mkDeps(initialPreferences: Record<string, unknown> = {}) {
     async listItemIdsByDate() {
       return []
     },
-    async markDone() {},
-    async markUndone() {},
+    async markDone() {
+      return true
+    },
+    async markUndone() {
+      return true
+    },
   }
   const profiles: ProfilesRepo = {
     async getTimezone() {

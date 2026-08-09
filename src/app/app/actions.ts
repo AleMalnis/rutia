@@ -2,12 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { SecretConfigError } from '@/lib/crypto'
 import { parseItemForm } from '@/lib/item-form'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
+import { createLlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
+import { createLlmSettingsService, type LlmKeyStatus } from '@/services/llm-settings.service'
 import { createRoutineService, type OverlapConflict } from '@/services/routine.service'
 
 // Server actions de la gestión manual de ítems (spec §7.2: la UI llama aquí,
@@ -283,6 +286,56 @@ export async function reportTimezone(timezone: string): Promise<void> {
   } catch (error) {
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
     console.error(`reportTimezone: ${detail}`)
+  }
+}
+
+export type LlmKeyFormState =
+  | { status: 'ok'; key: LlmKeyStatus }
+  | { status: 'error'; message: string }
+  | null
+
+/**
+ * Guarda la clave BYOK del usuario (spec §6.4). La clave viaja una sola vez
+ * hacia el servidor, se cifra y no vuelve jamás: el estado devuelto trae solo
+ * proveedor y últimos 4 caracteres.
+ */
+export async function saveLlmKey(input: {
+  provider: string
+  apiKey: string
+}): Promise<LlmKeyFormState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const settings = createLlmSettingsService({ repo: createLlmSettingsRepo(context.supabase) })
+    const result = await settings.saveKey(context.userId, input)
+    if (!result.ok) return { status: 'error', message: result.message }
+    return { status: 'ok', key: result.status }
+  } catch (error) {
+    if (error instanceof SecretConfigError) {
+      console.error(`saveLlmKey: ${error.name}: ${error.message}`)
+      return {
+        status: 'error',
+        message: 'El servidor no tiene configurado el cifrado de claves (LLM_KEY_SECRET).',
+      }
+    }
+    return unexpectedFailure('saveLlmKey', error)
+  }
+}
+
+/** Borra la clave BYOK guardada; el chat vuelve a pedir configuración. */
+export async function deleteLlmKey(): Promise<LlmKeyFormState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const settings = createLlmSettingsService({ repo: createLlmSettingsRepo(context.supabase) })
+    await settings.deleteKey(context.userId)
+    return null
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error(`deleteLlmKey: ${detail}`)
+    return { status: 'error', message: 'No se pudo borrar la clave. Inténtalo de nuevo.' }
   }
 }
 

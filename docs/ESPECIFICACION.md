@@ -45,7 +45,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 2. Vista de **calendario semanal** (lunes–domingo × horas) con bloques coloreados por categoría y **chips** para los recordatorios puntuales.
 3. Ítems con **recurrencia multi-día** (`days[]`): un solo ítem puede vivir en varios días («todos los días», «L-V»).
 4. **CRUD manual básico** de ítems desde la UI (crear, editar, borrar) como alternativa al chat.
-5. **Chat con el agente** que modifica la rutina mediante herramientas: crear, editar/mover, borrar, vaciar día, creación masiva y marcar completado.
+5. **Chat con el agente** que modifica la rutina mediante herramientas: crear, editar/mover, borrar, vaciar día, creación masiva y marcar completado. Funciona en modo **BYOK multi-proveedor**: cada usuario pega su propia API key (Anthropic, OpenAI o Google) en **Ajustes → IA** y la inferencia corre a su cargo; sin clave configurada, el chat lo explica y ofrece configurarla (o usar el modo MCP cuando exista). No hay clave del servidor: coste de inferencia cero para la app.
 6. Cambios del agente **reflejados inmediatamente** en el calendario, con resaltado breve de los ítems afectados.
 7. **Generación de rutina inicial** a partir de una descripción libre («trabajo de 9 a 17, gym 3 días, medicación a las 9 y a las 21…»).
 8. **Detección de solapes entre bloques**: el agente avisa del conflicto y propone alternativa antes de pisar nada (los recordatorios puntuales no generan conflicto).
@@ -69,7 +69,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 ### Could — extras si sobra tiempo
 - Excepciones para una semana concreta (sin romper la plantilla recurrente).
 - Modo MCP avanzado: autenticación **OAuth 2.1** y refresco del calendario **en tiempo real** (Supabase Realtime) mientras chateas desde tu cliente externo.
-- Ajuste **BYOK** en el chat integrado: el usuario puede poner su propia API key (pago por uso; no es su suscripción).
+- Validación en vivo de la API key al guardarla (botón «Probar» con una llamada mínima al proveedor).
 - Lista de la compra generada desde las comidas que el usuario ha dictado.
 - Avisos del navegador mientras la app está abierta (Notification API).
 - Exportar en formato calendario (.ics), modo oscuro de la app, PWA instalable, streaming de respuestas.
@@ -108,7 +108,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - `/login` y `/registro` — formularios mínimos, mensaje de error claro.
 - `/app` — pantalla única de trabajo:
   - **Escritorio:** calendario semanal (columnas L–D, filas por horas, 06:00–24:00 por defecto) + panel derecho con pestañas **Chat** y **Hoy**.
-  - **Móvil:** vista **«Hoy»** como pantalla principal (lista con checks), calendario semanal deslizable y chat como panel flotante.
+  - **Móvil:** vista **«Hoy»** como pantalla principal (lista con checks) y calendario semanal deslizable. En v1 el chat comparte el mismo panel de pestañas **Chat**/**Hoy** también en móvil; el panel flotante queda como pulido futuro.
 - Primera visita: el agente saluda y ofrece crear la rutina inicial (onboarding conversacional, sin tutorial).
 
 **Detalles de acabado:**
@@ -118,6 +118,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - **Apariencia personalizable**: modo claro/oscuro/automático, un **tema de superficie** entre 5 presets validados de contraste (zinc, pizarra, arena, bosque, uva — cada uno define fondo de página, tarjeta, bordes, tinta y acento vía variables CSS, en claro y oscuro) y **fuente** (sistema, serif o redondeada, autoalojadas con `next/font`). Guardada en `profiles.preferences.appearance`; se aplica solo dentro de `/app` (login/registro quedan en el tema neutro). No hay pickers libres en v1: solo combinaciones que pasan la validación, y los 8 colores de categoría están revalidados contra cada superficie.
 - Los ítems muestran su detalle como subtítulo (p. ej. «Cena · Pasta», «Medicación · Enalapril 10 mg»).
 - Indicador «pensando…» mientras el agente trabaja; mensajes del agente breves y accionables.
+- **Ajustes → IA (BYOK)**: el usuario elige proveedor (Anthropic, OpenAI o Google) y pega su API key. La clave nunca se vuelve a mostrar (solo proveedor y últimos 4 caracteres), se puede reemplazar o borrar, y sin clave el chat muestra un aviso claro con acceso directo a estos ajustes.
 
 **Exportación (lámina):** botón «Exportar» en la cabecera del calendario. Genera una **lámina dedicada** —un componente aparte renderizado fuera de pantalla a resolución fija (p. ej. 1920×1080)— con la semana completa, título y leyenda de categorías, convertida a PNG en el navegador con una librería tipo `html-to-image`. La misma lámina sirve como **vista imprimible** (`@media print`, ocultando chat y paneles). El formato vertical para móvil es la variante del *Should*.
 
@@ -134,6 +135,7 @@ La rutina es una **plantilla semanal recurrente**: los ítems viven en días-de-
 | `routine_items` | `id`, `user_id`, `title`, `category_id`, `kind` ('block' \| 'reminder'), `days smallint[]` (0=lunes … 6=domingo), `start_time` (time), `end_time` (time, null si reminder), `detail` (texto corto: plato, dosis…), `notes`, `created_at`, `updated_at` | Check: si `kind='block'` entonces `end_time > start_time`; `days` no vacío |
 | `completions` | `id`, `user_id`, `item_id`, `date` (date), `completed_at` | Unique (`item_id`, `date`) — un check por ítem y día |
 | `chat_messages` | `id`, `user_id`, `role` ('user' \| 'assistant'), `content`, `tool_calls jsonb`, `created_at` | Historial del chat |
+| `llm_settings` | `user_id` (PK, = auth.users.id), `provider` ('anthropic' \| 'openai' \| 'google'), `api_key_encrypted`, `created_at`, `updated_at` | Clave BYOK cifrada (AES-256-GCM con secreto del servidor); una fila por usuario |
 | `routine_snapshots` (Should) | `id`, `user_id`, `data jsonb`, `created_at` | Estado previo para «deshacer» |
 
 **RLS obligatoria en todas las tablas:** política `user_id = auth.uid()` para SELECT/INSERT/UPDATE/DELETE. Sin excepciones.
@@ -159,8 +161,8 @@ La rutina es una **plantilla semanal recurrente**: los ítems viven en días-de-
 
 | Herramienta | Parámetros | Efecto |
 |---|---|---|
-| `create_item` | `title, kind ('block'\|'reminder'), days[0-6][], start ("HH:MM"), end? (obligatorio si block), category?, detail?, notes?` | Crea un ítem recurrente |
-| `update_item` | `item_id, campos opcionales (title, kind, days, start, end, category, detail, notes)` | Edita, mueve o cambia el detalle de un ítem |
+| `create_item` | `title, kind ('block'\|'reminder'), days[0-6][], start ("HH:MM"), end? (obligatorio si block), category_id? (UUID de la lista de categorías del contexto), detail?, notes?` | Crea un ítem recurrente |
+| `update_item` | `item_id, campos opcionales (title, kind, days, start, end, category_id, detail, notes)` | Edita, mueve o cambia el detalle de un ítem |
 | `delete_items` | `item_ids[]` | Borra uno o varios ítems |
 | `clear_day` | `day, franja opcional (from, to)` | Quita ese día del array de los ítems afectados; si un ítem se queda sin días, se borra |
 | `bulk_create_items` | `items[]` | Rutina inicial o cambios masivos |
@@ -181,6 +183,9 @@ Fecha actual: {{FECHA}} ({{DIA_SEMANA}}). Zona horaria del usuario: {{TIMEZONE}}
 RUTINA ACTUAL DEL USUARIO:
 {{RUTINA_SERIALIZADA}}  // ítems con id, kind, days, horas, título, categoría, detail
 
+CATEGORÍAS DISPONIBLES (usa su id como category_id):
+{{CATEGORIAS}}  // id y nombre de las categorías del usuario
+
 CHECKS DE HOY:
 {{COMPLETADOS_HOY}}  // item_id → hecho / pendiente
 
@@ -200,11 +205,12 @@ REGLAS:
 13. Solo gestionas la rutina. Si te piden otra cosa, redirige con amabilidad.
 ```
 
-### 6.4 Proveedor de IA (puerta A: chat integrado)
+### 6.4 Proveedor de IA (puerta A: chat integrado, BYOK multi-proveedor)
 
-- **Un solo proveedor en el MVP**, elegido al inicio: Anthropic (`claude-sonnet-4-6`) u OpenAI (modelo equivalente con tool use fiable). Ambos soportan el patrón; elige el que te resulte más cómodo de facturación.
-- La llamada vive detrás de una interfaz propia (`AgentService` → `LLMClient`), de modo que cambiar de proveedor sea tocar un solo archivo.
-- API key **solo en el servidor**, vía variable de entorno. Presupuesto estimado: céntimos por conversación; poner tope de gasto en el panel del proveedor.
+- El chat integrado funciona **exclusivamente con la API key del propio usuario** (*bring your own key*): no hay clave del servidor ni coste de inferencia para la app. Sin clave configurada, el chat lo explica con un mensaje claro y ofrece dos salidas: pegar una clave de desarrollador en **Ajustes → IA** (pago por uso contra su cuenta de API) o, cuando exista, el **modo MCP** (§6.5) con su propia suscripción. La suscripción de consumidor (ChatGPT Plus, Claude Pro) NO se puede consumir vía API: eso es exactamente lo que resuelve el modo MCP.
+- **Tres proveedores soportados**, cada uno tras la interfaz `LLMClient` (añadir otro = tocar un solo archivo): **Anthropic** (`claude-sonnet-4-6`, Messages API), **OpenAI** (`gpt-5.6-terra`, Responses API) y **Google** (`gemini-2.5-flash`, `generateContent`). Los tres soportan tool use fiable; el modelo por defecto de cada proveedor es una constante del código.
+- La clave se guarda **cifrada en reposo** (AES-256-GCM con el secreto de servidor `LLM_KEY_SECRET`), nunca vuelve al navegador (solo proveedor + últimos 4 caracteres), es reemplazable y revocable desde Ajustes y jamás aparece en logs.
+- Tope de gasto: el que el usuario tenga configurado en el panel de su proveedor. El rate limit de §8 sigue aplicando: también protege la clave del usuario.
 
 ### 6.5 Modo MCP: la segunda puerta (Should)
 
@@ -282,7 +288,8 @@ rutia/
 | Riesgo | Mitigación en RutIA |
 |---|---|
 | Control de acceso roto (A01) | RLS en todas las tablas + sesión verificada en cada server action |
-| Secretos expuestos (A02) | API keys solo en env del servidor; `.env.example` documentado; nada de claves en el cliente ni en Git |
+| Secretos expuestos (A02) | Secretos de la app solo en env del servidor; `.env.example` documentado; nada de claves en el cliente ni en Git |
+| Clave BYOK del usuario (A02) | Cifrada en reposo (AES-256-GCM, secreto `LLM_KEY_SECRET` solo en env del servidor); write-only hacia el cliente (solo proveedor + últimos 4); revocable desde Ajustes; nunca en logs |
 | Inyección (A03) | Consultas vía SDK de Supabase (parametrizadas) + validación Zod de toda entrada |
 | Diseño inseguro (A04) | Las herramientas del agente nunca reciben `user_id` del modelo; confirmación para borrados masivos |
 | Abuso / coste | Rate limiting por usuario en `/api/chat` (p. ej. 20 mensajes / 5 min) y tope de gasto en el proveedor |
@@ -340,4 +347,6 @@ Señalados por revisión (CodeRabbit, PR #6) y aplazados en v1 por decisión de 
 3. **Prettier en CI** — §9 lo promete pero aún no está en el repo (ni dependencia ni config). Aplazado: introducirlo exige un formateo inicial de todo el código en un chore dedicado, para no mezclar churn de formato en PRs funcionales. Implementación prevista: `prettier` como devDependency + `format:check` en el workflow de CI entre Lint y Typecheck.
 4. **Apariencia: superficies fuera del wrapper** — implementada en §4, pero el tema vive en el `<main>` de `/app`: el `<html>`/`<body>` y el error boundary quedan fuera, así que con un modo forzado contrario al del sistema pueden asomar el color del sistema en el overscroll móvil, la scrollbar raíz y la pantalla de error. Solución prevista si molesta: persistir la apariencia también en una cookie y estampar los data-attrs en el `<html>` desde el layout raíz.
 5. **`preferences` es leer-mezclar-escribir no atómico** — con `appearance` como única clave el peor caso es last-write-wins entre pestañas. Al añadir una segunda clave hay que pasar a merge atómico en BD (`preferences = preferences || $1` vía función SQL + rpc). Anotado también en `profiles.repo.ts`.
-6. **`24:00` no es editable desde el formulario manual** — `endTimeSchema` acepta `24:00` (la rejilla de §4 llega ahí y Postgres lo admite), pero `<input type="time">` solo llega a 23:59: al abrir un ítem que termine a medianoche, el campo Fin sale vacío y, al ser obligatorio, bloquea el guardado. Hoy es latente porque ningún camino crea ese valor (el formulario no puede y el agente no existe todavía). Se resolverá al implementar el agente (§6.2), eligiendo entonces entre una casilla «hasta medianoche» en el formulario o normalizar a 23:59 en todo el dominio.
+6. **`24:00` no es editable desde el formulario manual** — `endTimeSchema` acepta `24:00` (la rejilla de §4 llega ahí y Postgres lo admite), pero `<input type="time">` solo llega a 23:59: al abrir un ítem que termine a medianoche, el campo Fin sale vacío y, al ser obligatorio, bloquea el guardado. Sigue siendo latente: el agente (el único camino que podría crear ese valor) normaliza `24:00` → `23:59` en su frontera (`agent.tools.ts`), así que ningún ítem real lo lleva. Si algún día hace falta la medianoche exacta, la opción es la casilla «hasta medianoche» en el formulario.
+7. **Una herramienta ya en vuelo no está acotada por el presupuesto** — `/api/chat` corta por tiempo (`AbortSignal` compartido) las peticiones al proveedor —los reintentos de Anthropic y OpenAI se desactivan porque su espera entre intentos ignora el signal— y deja de despachar herramientas nuevas al vencer, pero una escritura de Supabase que ya haya empezado sigue hasta que responda: en el peor caso, una única consulta colgada agota el `maxDuration` de la función. Aplazado: acotarla exige propagar el signal por toda la API de `RoutineService` y los repositorios (supabase-js lo admite con `.abortSignal()` en cada consulta), y el mismo hueco lo tienen las demás rutas, que también consultan sin límite. Implementación prevista: `AbortSignal` opcional en los repositorios y un parámetro de contexto en el servicio, si alguna vez se observa una consulta lenta real.
+8. **Rate limit del chat sin transacción** — `/api/chat` cuenta filas de `chat_messages` en los últimos 5 minutos antes de escribir (spec §8): dos peticiones simultáneas pueden pasar ambas el conteo y colar un par de mensajes por encima de 20. Aplazado: el exceso realista es de unidades y el tope de gasto vive también en el panel del proveedor. Implementación prevista si hiciera falta: función SQL que cuente e inserte en la misma transacción (o token bucket en BD).

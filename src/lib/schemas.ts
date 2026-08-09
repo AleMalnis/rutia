@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FONTS, MODES, THEME_IDS } from '@/lib/appearance'
 import { CATEGORY_COLOR_VALUES } from '@/lib/category-colors'
+import { LLM_PROVIDER_IDS } from '@/lib/llm-providers'
 
 // Esquemas Zod y tipos compartidos (spec §7.2: validación en todas las
 // fronteras; los formularios nunca llegan al servidor sin pasar por aquí).
@@ -145,6 +146,24 @@ export const appearanceSchema = z.object({
     .refine((value) => THEME_IDS.includes(value), 'Elige un tema de la lista.'),
   font: z.enum(FONTS, 'Fuente no válida.'),
 })
+
+// ── Clave BYOK (spec §6.4) ───────────────────────────────────────────────────
+
+// Validación laxa a propósito: los formatos de clave cambian por proveedor y
+// con el tiempo; la prueba real es la primera llamada. Solo se corta lo
+// claramente roto (vacío, gigante, NUL, espacios internos).
+export const llmKeyInputSchema = z.object({
+  provider: z.enum(LLM_PROVIDER_IDS, 'Elige un proveedor de la lista.'),
+  apiKey: z
+    .string('Pega tu clave de API.')
+    .trim()
+    .min(20, 'Esa clave parece demasiado corta.')
+    .max(256, 'Esa clave parece demasiado larga.')
+    .refine(hasNoNul, 'La clave contiene caracteres no válidos.')
+    .refine((value) => !/\s/.test(value), 'La clave no puede contener espacios.'),
+})
+
+export type LlmKeyInput = z.infer<typeof llmKeyInputSchema>
 
 // ── Categorías propias (spec §4) ─────────────────────────────────────────────
 

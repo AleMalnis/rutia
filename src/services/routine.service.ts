@@ -5,13 +5,16 @@ import {
   categoryInputSchema,
   categoryUpdateSchema,
   createRoutineItemSchema,
+  daySchema,
+  endTimeSchema,
   routineItemDataSchema,
+  timeSchema,
   updateRoutineItemSchema,
   type Category,
   type CreateRoutineItemInput,
   type RoutineItem,
 } from '@/lib/schemas'
-import { isValidTimezone, itemsForDay, todayInTimezone } from '@/lib/today'
+import { DEFAULT_TIMEZONE, isValidTimezone, itemsForDay, todayInTimezone } from '@/lib/today'
 import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
@@ -89,9 +92,18 @@ export type DeleteResult = { ok: true; deleted: number } | ServiceFailure
 
 /** Un ítem de hoy con su estado de completado (spec §4, panel «Hoy»). */
 export type TodayEntry = { item: RoutineItem; done: boolean }
-export type TodayResult = { ok: true; date: string; weekday: number; entries: TodayEntry[] }
+export type TodayResult = {
+  ok: true
+  date: string
+  weekday: number
+  timeZone: string
+  entries: TodayEntry[]
+}
 export type CompletedResult =
-  | { ok: true; done: boolean }
+  // `changed` distingue «se ha escrito» de «ya estaba así»: marcar dos veces
+  // es idempotente, y quien decida si hubo cambio real (el agente) no puede
+  // deducirlo de `ok`.
+  | { ok: true; done: boolean; changed: boolean }
   | ServiceFailure
   // el panel que el usuario tiene delante es de otro día: no se escribe
   | { ok: false; reason: 'stale'; message: string }
@@ -120,12 +132,50 @@ function categoryFkFailure(error: unknown): ServiceFailure | null {
   return null
 }
 
-// NOTA para bulk_create_items (herramienta futura, spec §6.2): NO componerla
-// como bucle de createItem — un conflicto a mitad de lote dejaría escritura
-// parcial. Debe validar todo el lote, comprobar solapes contra lo existente y
-// entre los propios ítems del lote (findBlockOverlaps), y solo entonces
-// insertar en una única llamada.
 export type CategoryResult = { ok: true; category: Category } | ServiceFailure
+export type BulkCreateResult = { ok: true; items: RoutineItem[] } | ServiceFailure
+export type ClearDayResult =
+  | { ok: true; updated: RoutineItem[]; deletedIds: string[] }
+  | ServiceFailure
+
+// Lote de creación (bulk_create_items, spec §6.2). El tope de 50 acota el
+// coste de una llamada del agente; una rutina inicial completa ronda los 20.
+const bulkItemsSchema = z
+  .array(routineItemDataSchema, 'Se espera un array de ítems.')
+  .min(1, 'El lote necesita al menos un ítem.')
+  .max(50, 'El lote no puede superar los 50 ítems.')
+
+// clear_day (spec §6.2): día obligatorio, franja opcional pero completa.
+const clearDaySchema = z
+  .object({
+    day: daySchema,
+    from: timeSchema.optional(),
+    to: endTimeSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if ((value.from == null) !== (value.to == null)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['to'],
+        message: 'La franja necesita hora de inicio y de fin.',
+      })
+    } else if (value.from != null && value.to != null && value.to <= value.from) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['to'],
+        message: 'El fin de la franja debe ser posterior al inicio.',
+      })
+    }
+  })
+
+// ¿Cae el ítem dentro de la franja [from, to)? Un bloque cuenta si su tramo
+// la pisa; un recordatorio, si su hora está dentro.
+function itemInRange(item: RoutineItem, from: string, to: string): boolean {
+  if (item.kind === 'block' && item.end != null) {
+    return timesOverlap(item.start, item.end, from, to)
+  }
+  return from <= item.start && item.start < to
+}
 
 export type RoutineDeps = {
   items: ItemsRepo
@@ -159,7 +209,10 @@ export function createRoutineService({
      * puertas —web y, más adelante, el agente— ven siempre el mismo «hoy».
      */
     async listToday(userId: string, now: Date): Promise<TodayResult> {
-      const timeZone = await profilesRepo.getTimezone(userId)
+      const stored = await profilesRepo.getTimezone(userId)
+      // el timeZone devuelto es el EFECTIVO: si el guardado está corrupto,
+      // todayInTimezone ya calcula con el de por defecto y aquí se refleja
+      const timeZone = isValidTimezone(stored) ? stored : DEFAULT_TIMEZONE
       const { date, weekday } = todayInTimezone(now, timeZone)
       const [all, doneIds] = await Promise.all([
         itemsRepo.listByUser(userId),
@@ -170,7 +223,7 @@ export function createRoutineService({
         item,
         done: done.has(item.id),
       }))
-      return { ok: true, date, weekday, entries }
+      return { ok: true, date, weekday, timeZone, entries }
     },
 
     /**
@@ -218,12 +271,10 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: 'Ese ítem no toca hoy.' }
       }
 
-      if (done) {
-        await completionsRepo.markDone(userId, parsedId.data, date)
-      } else {
-        await completionsRepo.markUndone(userId, parsedId.data, date)
-      }
-      return { ok: true, done }
+      const changed = done
+        ? await completionsRepo.markDone(userId, parsedId.data, date)
+        : await completionsRepo.markUndone(userId, parsedId.data, date)
+      return { ok: true, done, changed }
     },
 
     async listCategories(userId: string): Promise<Category[]> {
@@ -405,6 +456,110 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
       }
       return { ok: true, deleted: await itemsRepo.deleteMany(userId, parsed.data) }
+    },
+
+    /**
+     * bulk_create_items (spec §6.2): rutina inicial o cambios masivos.
+     * Todo-o-nada: se valida el lote completo, se comprueban solapes contra lo
+     * existente Y entre los propios ítems del lote, y solo si todo está limpio
+     * se inserta en UNA llamada. Nunca componer como bucle de createItem: un
+     * conflicto a mitad dejaría escritura parcial.
+     */
+    async bulkCreateItems(userId: string, input: unknown): Promise<BulkCreateResult> {
+      const parsed = bulkItemsSchema.safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      const batch = parsed.data
+
+      // solapes dentro del propio lote: el lote está mal formado, no es un
+      // conflicto negociable con la rutina existente
+      for (let i = 0; i < batch.length; i++) {
+        const candidate = batch[i]
+        if (candidate.kind !== 'block' || candidate.end == null) continue
+        for (let j = i + 1; j < batch.length; j++) {
+          const other = batch[j]
+          if (other.kind !== 'block' || other.end == null) continue
+          if (sharedDays(candidate.days, other.days).length === 0) continue
+          if (!timesOverlap(candidate.start, candidate.end, other.start, other.end)) continue
+          return {
+            ok: false,
+            reason: 'invalid',
+            message: `Los ítems «${candidate.title}» y «${other.title}» del lote se solapan entre sí.`,
+          }
+        }
+      }
+
+      const existing = await itemsRepo.listByUser(userId)
+      const conflicts: OverlapConflict[] = []
+      const seen = new Set<string>()
+      for (const candidate of batch) {
+        for (const conflict of findBlockOverlaps(candidate, existing)) {
+          if (seen.has(conflict.itemId)) continue
+          seen.add(conflict.itemId)
+          conflicts.push(conflict)
+        }
+      }
+      if (conflicts.length > 0) return { ok: false, reason: 'conflict', conflicts }
+
+      try {
+        return { ok: true, items: await itemsRepo.insertMany(userId, batch) }
+      } catch (error) {
+        const failure = categoryFkFailure(error)
+        if (failure) return failure
+        throw error
+      }
+    },
+
+    /**
+     * clear_day (spec §6.2): quita ese día del array de los ítems afectados;
+     * si un ítem se queda sin días, se borra. Con franja, solo afecta a lo que
+     * cae dentro de [from, to). Los borrados van en una sola llamada; las
+     * actualizaciones, una a una (quitar un día no puede crear solapes, así
+     * que no se re-comprueban).
+     */
+    async clearDay(userId: string, input: unknown): Promise<ClearDayResult> {
+      const parsed = clearDaySchema.safeParse(input)
+      if (!parsed.success) {
+        return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
+      }
+      const { day, from, to } = parsed.data
+
+      const all = await itemsRepo.listByUser(userId)
+      const affected = all.filter(
+        (item) =>
+          item.days.includes(day) && (from == null || to == null || itemInRange(item, from, to)),
+      )
+
+      const toDelete = affected.filter((item) => item.days.length === 1)
+      const toUpdate = affected.filter((item) => item.days.length > 1)
+
+      const deletedIds: string[] = []
+      if (toDelete.length > 0) {
+        await itemsRepo.deleteMany(
+          userId,
+          toDelete.map((item) => item.id),
+        )
+        deletedIds.push(...toDelete.map((item) => item.id))
+      }
+
+      const updated: RoutineItem[] = []
+      for (const item of toUpdate) {
+        const result = await itemsRepo.update(userId, item.id, {
+          title: item.title,
+          kind: item.kind,
+          days: item.days.filter((d) => d !== day),
+          start: item.start,
+          end: item.end,
+          categoryId: item.categoryId,
+          detail: item.detail,
+          notes: item.notes,
+        })
+        // null = borrado por la otra puerta entre la lectura y esta escritura
+        if (result != null) updated.push(result)
+      }
+
+      return { ok: true, updated, deletedIds }
     },
   }
 }

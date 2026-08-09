@@ -24,6 +24,9 @@ function mkDeps(existing: Category[] = []) {
     async insert() {
       throw new Error('no usado')
     },
+    async insertMany() {
+      throw new Error('no usado')
+    },
     async update() {
       return null
     },
@@ -35,8 +38,12 @@ function mkDeps(existing: Category[] = []) {
     async listItemIdsByDate() {
       return []
     },
-    async markDone() {},
-    async markUndone() {},
+    async markDone() {
+      return true
+    },
+    async markUndone() {
+      return true
+    },
   }
   const profiles: ProfilesRepo = {
     async getTimezone() {
