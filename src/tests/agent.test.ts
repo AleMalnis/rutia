@@ -112,10 +112,12 @@ function mkDeps(initialItems: RoutineItem[] = [], categories: Category[] = []) {
       return [...marked]
     },
     async markDone(_u, itemId) {
+      if (marked.has(itemId)) return false
       marked.add(itemId)
+      return true
     },
     async markUndone(_u, itemId) {
-      marked.delete(itemId)
+      return marked.delete(itemId)
     },
   }
   const profiles: ProfilesRepo = {
@@ -497,6 +499,27 @@ describe('executeAgentTool: mapeo de llamadas → RoutineService', () => {
     expect(items.store[0].end).toBe('23:59')
   })
 
+  it('un miembro nulo o primitivo del lote da error de validación, no error interno', async () => {
+    const { deps, items } = mkDeps()
+    const routine = createRoutineService(deps)
+
+    for (const malo of [null, 'texto', 42] as unknown[]) {
+      const execution = await executeAgentTool(routine, USER, NOW, {
+        id: 't1',
+        name: 'bulk_create_items',
+        input: {
+          items: [{ title: 'Bueno', kind: 'reminder', days: [5], start: '09:00' }, malo],
+        },
+      })
+      expect(execution.isError).toBe(true)
+      const payload = JSON.parse(execution.content)
+      expect(payload.reason).toBe('invalid')
+      // el mensaje viene de Zod, no del catch genérico del bucle
+      expect(payload.message).not.toContain('Error interno')
+    }
+    expect(items.store).toHaveLength(0)
+  })
+
   it('bulk_create_items con items que no es array devuelve error legible', async () => {
     const routine = createRoutineService(mkDeps().deps)
     const execution = await executeAgentTool(routine, USER, NOW, {
@@ -520,8 +543,18 @@ describe('executeAgentTool: mapeo de llamadas → RoutineService', () => {
     })
 
     expect(execution.isError).toBe(false)
+    expect(execution.mutated).toBe(true)
     expect(marked.has(item.id)).toBe(true)
     expect(execution.affectedIds).toEqual([item.id])
+
+    // marcarlo otra vez termina bien, pero ya no escribe nada
+    const repetida = await executeAgentTool(routine, USER, NOW, {
+      id: 't2',
+      name: 'set_completed',
+      input: { item_id: item.id, done: true },
+    })
+    expect(repetida.isError).toBe(false)
+    expect(repetida.mutated).toBe(false)
   })
 
   it('set_completed exige un done booleano de verdad', async () => {

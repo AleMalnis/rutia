@@ -17,26 +17,34 @@ export function createCompletionsRepo(supabase: SupabaseClient) {
       return (data as { item_id: string }[]).map((row) => row.item_id)
     },
 
-    /** Idempotente: marcar dos veces el mismo ítem y día no falla. */
-    async markDone(userId: string, itemId: string, date: string): Promise<void> {
-      const { error } = await supabase
+    /**
+     * Idempotente: marcar dos veces el mismo ítem y día no falla. Devuelve si
+     * de verdad escribió: con ignoreDuplicates, la fila que ya existía no se
+     * inserta y no vuelve en el select.
+     */
+    async markDone(userId: string, itemId: string, date: string): Promise<boolean> {
+      const { data, error } = await supabase
         .from('completions')
         .upsert(
           { user_id: userId, item_id: itemId, date },
           { onConflict: 'item_id,date', ignoreDuplicates: true },
         )
+        .select('id')
       if (error) throw new RepoError(error.message, error.code)
+      return (data as { id: string }[]).length > 0
     },
 
     /** Idempotente: desmarcar algo que no estaba marcado no falla. */
-    async markUndone(userId: string, itemId: string, date: string): Promise<void> {
-      const { error } = await supabase
+    async markUndone(userId: string, itemId: string, date: string): Promise<boolean> {
+      const { data, error } = await supabase
         .from('completions')
         .delete()
         .eq('user_id', userId)
         .eq('item_id', itemId)
         .eq('date', date)
+        .select('id')
       if (error) throw new RepoError(error.message, error.code)
+      return (data as { id: string }[]).length > 0
     },
   }
 }

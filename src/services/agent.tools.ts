@@ -285,7 +285,8 @@ export async function executeAgentTool(
       const result = await routine.setCompleted(userId, input.item_id, input.done, now, null)
       if (!result.ok) return fail(result)
       const itemId = typeof input.item_id === 'string' ? [input.item_id] : []
-      return ok({ done: result.done }, true, itemId)
+      // marcar lo que ya estaba marcado no escribe nada
+      return ok({ done: result.done }, result.changed, itemId)
     }
 
     default:

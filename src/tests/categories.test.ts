@@ -38,8 +38,12 @@ function mkDeps(existing: Category[] = []) {
     async listItemIdsByDate() {
       return []
     },
-    async markDone() {},
-    async markUndone() {},
+    async markDone() {
+      return true
+    },
+    async markUndone() {
+      return true
+    },
   }
   const profiles: ProfilesRepo = {
     async getTimezone() {

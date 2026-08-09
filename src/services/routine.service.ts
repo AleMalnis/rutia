@@ -100,7 +100,10 @@ export type TodayResult = {
   entries: TodayEntry[]
 }
 export type CompletedResult =
-  | { ok: true; done: boolean }
+  // `changed` distingue «se ha escrito» de «ya estaba así»: marcar dos veces
+  // es idempotente, y quien decida si hubo cambio real (el agente) no puede
+  // deducirlo de `ok`.
+  | { ok: true; done: boolean; changed: boolean }
   | ServiceFailure
   // el panel que el usuario tiene delante es de otro día: no se escribe
   | { ok: false; reason: 'stale'; message: string }
@@ -268,12 +271,10 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: 'Ese ítem no toca hoy.' }
       }
 
-      if (done) {
-        await completionsRepo.markDone(userId, parsedId.data, date)
-      } else {
-        await completionsRepo.markUndone(userId, parsedId.data, date)
-      }
-      return { ok: true, done }
+      const changed = done
+        ? await completionsRepo.markDone(userId, parsedId.data, date)
+        : await completionsRepo.markUndone(userId, parsedId.data, date)
+      return { ok: true, done, changed }
     },
 
     async listCategories(userId: string): Promise<Category[]> {
