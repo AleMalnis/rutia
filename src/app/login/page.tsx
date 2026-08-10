@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { useActionState } from 'react'
+import { RedirectDestination, RegisterLink } from '@/components/redirect-destination'
 import { login } from './actions'
 
 export default function LoginPage() {
@@ -16,6 +18,14 @@ export default function LoginPage() {
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           Iniciar sesión
         </h1>
+
+        {/* El destino de vuelta vive en la URL (lo pone, por ejemplo, el
+            consentimiento del modo MCP). Leerlo obliga a un límite de Suspense,
+            así que va aislado: el resto del formulario sigue prerenderizándose
+            y no parpadea. El servidor lo valida con safeRedirect. */}
+        <Suspense fallback={null}>
+          <RedirectDestination />
+        </Suspense>
 
         <label className="block space-y-1">
           <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
@@ -56,12 +66,20 @@ export default function LoginPage() {
 
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           ¿No tienes cuenta?{' '}
-          <Link
-            href="/registro"
-            className="font-medium text-zinc-900 underline dark:text-zinc-50"
+          {/* el enlace conserva el destino si lo hay; el fallback es el enlace
+              de siempre, así que nunca se ve un hueco */}
+          <Suspense
+            fallback={
+              <Link
+                href="/registro"
+                className="font-medium text-zinc-900 underline dark:text-zinc-50"
+              >
+                Regístrate
+              </Link>
+            }
           >
-            Regístrate
-          </Link>
+            <RegisterLink className="font-medium text-zinc-900 underline dark:text-zinc-50" />
+          </Suspense>
         </p>
       </form>
     </main>

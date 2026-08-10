@@ -57,7 +57,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 14. Desplegado en producción (Vercel) con URL pública.
 
 ### Should — segunda oleada, solo con el Must cerrado
-- **Modo MCP (v1):** servidor MCP remoto que expone las 6 herramientas sobre `RoutineService`; autenticación por **token personal** generado en ajustes; guía de conexión en el README (Claude, ChatGPT, IDEs). Coste de inferencia: cero para la app — el modelo lo pone el cliente del usuario.
+- **Modo MCP (v1):** servidor MCP remoto que expone las herramientas sobre `RoutineService`; autorización **OAuth 2.1 con Supabase como servidor de autorización** y pantalla de consentimiento propia; guía de conexión en el README (Claude, ChatGPT, IDEs). Coste de inferencia: cero para la app — el modelo lo pone el cliente del usuario.
 - **Instalable por terceros (plug and play):** botón «Deploy with Vercel» en el README y guía de autoinstalación paso a paso (proyecto gratuito de Supabase + ejecutar la migración SQL + 3 variables de entorno, ~15 minutos). Quien se autoinstala pone su propia API key y paga su propio consumo.
 - Historial de conversación persistente entre sesiones.
 - **Deshacer** el último cambio del agente (snapshot previo de la rutina).
@@ -138,6 +138,8 @@ La rutina es una **plantilla semanal recurrente**: los ítems viven en días-de-
 | `llm_settings` | `user_id` (PK, = auth.users.id), `provider` ('anthropic' \| 'openai' \| 'google'), `api_key_encrypted`, `created_at`, `updated_at` | Clave BYOK cifrada (AES-256-GCM con secreto del servidor); una fila por usuario |
 | `routine_snapshots` (Should) | `id`, `user_id`, `data jsonb`, `created_at` | Estado previo para «deshacer» |
 
+El modo MCP (§6.5) **no añade tablas**: Supabase guarda los clientes OAuth y las autorizaciones. Sí añade una función de Postgres, el *Custom Access Token Hook*, que inyecta la audiencia MCP en los tokens del flujo OAuth.
+
 **RLS obligatoria en todas las tablas:** política `user_id = auth.uid()` para SELECT/INSERT/UPDATE/DELETE. Sin excepciones.
 
 > **Nota de diseño:** un ítem que ocurre «todos los días» es **una sola fila** con `days=[0,1,2,3,4,5,6]`. Editar su hora es un solo cambio; el calendario lo pinta en cada día de su array. La dieta la escribe el usuario en `detail`; no hay recetario ni generación de menús en la v1.
@@ -214,13 +216,33 @@ REGLAS:
 
 ### 6.5 Modo MCP: la segunda puerta (Should)
 
-El **servidor MCP de RutIA** expone exactamente las mismas 6 herramientas, implementado como un adaptador fino sobre `RoutineService` (ni una línea de lógica duplicada). El usuario genera un **token personal** en los ajustes de la app, añade RutIA como conector MCP en su cliente (Claude, ChatGPT, su IDE…) y gestiona la rutina conversando desde allí — **con su propia suscripción y coste cero de inferencia para la app**.
+El **servidor MCP de RutIA** expone las herramientas de `RoutineService` como un adaptador fino (ni una línea de lógica duplicada). El usuario añade RutIA como conector MCP en su cliente (Claude, ChatGPT, su IDE…), autoriza el acceso una vez y gestiona la rutina conversando desde allí — **con su propia suscripción y coste cero de inferencia para la app**.
 
-Detalles de diseño:
-- Aquí no hay system prompt nuestro: el «prompt» son las **descripciones de las herramientas**, así que se redactan con el mismo mimo (qué hace cada una, formato de días y horas, cuándo usar `reminder`).
-- Los tokens se guardan **hasheados**, son revocables desde ajustes y solo dan acceso a los datos del propio usuario (mismas garantías que la sesión web).
+#### Reparto de papeles
+
+`/api/mcp` es **exclusivamente un servidor de recursos** OAuth 2.1; **Supabase Auth es el servidor de autorización**. RutIA no emite tokens: eso lo hace el servidor OAuth 2.1 de Supabase, cuyos access tokens son JWT del propio proyecto con `sub` = usuario y `role` = `authenticated`.
+
+Esta decisión es la que permite cumplir la regla dura del proyecto («ninguna consulta se salta la RLS») sin coste operativo: el token entrante se reenvía a PostgREST, `auth.uid()` devuelve el usuario real y **las políticas RLS existentes aplican sin cambiar una línea de los repositorios**. En toda la ruta `/api/mcp` no interviene ninguna clave de servicio.
+
+> **Por qué no hay tokens personales.** La versión anterior de esta sección prometía un token personal hasheado generado en ajustes. Se descartó al implementar: un token propio que preserve la RLS tiene que ser un JWT firmado con la clave del proyecto, lo que obligaría a importar y custodiar una clave ES256 (Supabase no permite extraer las suyas); y la alternativa —token opaco más clave de servicio— se salta la RLS. Además los tokens estáticos esquivan el consentimiento y la revocación, que es justo donde vive el control del usuario sobre unas herramientas que **escriben**. Queda anotado en §12.
+
+#### Contrato del endpoint
+
+- **Descubrimiento (RFC 9728, obligatorio).** Se publica el mismo documento de *Protected Resource Metadata* en `/.well-known/oauth-protected-resource/api/mcp` y en `/.well-known/oauth-protected-resource`, con `resource`, `authorization_servers` apuntando al servidor OAuth de Supabase, `scopes_supported` y `bearer_methods_supported`.
+- **Validación del token, antes de ejecutar nada:** firma contra el JWKS del proyecto, `iss` exacto, vigencia, `role = authenticated`, `sub` presente y —lo que exige MCP— que la **audiencia** incluya este servidor. Cualquier fallo devuelve `401` con `WWW-Authenticate: Bearer resource_metadata="…"`, nunca un 500 ni un 200 con el error dentro.
+- **Audiencia por hook.** Supabase emite `aud: "authenticated"`, que no vale como audiencia de este servidor. Un *Custom Access Token Hook* en Postgres añade la audiencia MCP **solo a los tokens del flujo OAuth** (se distinguen por llevar `client_id`), dejando intactos los de la sesión web. Efecto secundario deseable: un token de sesión web no se puede reutilizar contra `/api/mcp`.
+- **Scopes.** Supabase solo admite los cinco scopes OIDC (`openid`, `profile`, `email`, `phone`, `offline_access`) y sus scopes no protegen tablas, así que **los permisos los define la RLS**, no el scope. Anunciar un scope propio rompe el flujo de autorización.
+- **Consentimiento.** La pantalla de autorización es nuestra (`/oauth/consent`): muestra qué cliente pide acceso y qué puede hacer, y es la puerta real de entrada porque el registro dinámico de clientes permite que cualquier cliente MCP se registre.
+- **Revocación.** Pendiente de UI en la app (`listGrants` / `revokeGrant` del SDK); mientras tanto se revoca desde el dashboard de Supabase o desde el propio cliente. Anotado en §12.
+
+#### Herramientas
+
+Las mismas de §6.2 **más una de lectura** (`get_routine`), que en el chat integrado no existe. La razón está en §6.1: allí la rutina se inyecta en el contexto, así que las herramientas pueden ser solo de escritura y el modelo nunca inventa IDs. Un cliente MCP no recibe esa inyección, y sin lectura tres herramientas (`update_item`, `delete_items`, `set_completed`) serían inutilizables porque exigen identificadores. El «prompt» de esta puerta son las **descripciones de las herramientas**, así que se redactan con el mismo mimo (qué hace cada una, formato de días y horas, cuándo usar `reminder`).
+
+#### Notas de implementación
+
+- **Dos eras del protocolo.** La revisión vigente (`2026-07-28`) es sin estado: sin `initialize`, sin sesiones y sin `ping`, con `server/discover`, `tools/list` y `tools/call`. Los clientes actuales todavía hablan revisiones anteriores, así que el endpoint reconoce ambas y rechaza lo desconocido con el error `-32022`. `GET` y `DELETE` responden `405`.
 - Ambas puertas escriben en la misma base de datos; con Supabase Realtime (*Could*) el calendario abierto en la web se refresca en vivo mientras chateas desde tu cliente.
-- Evolución natural (*Could*): autenticación **OAuth 2.1**, el estándar de los servidores MCP remotos.
 
 ---
 
@@ -268,7 +290,9 @@ rutia/
 ├── src/
 │   ├── app/                   # rutas: login, registro, app
 │   │   ├── api/chat/route.ts  # endpoint del agente (puerta A)
-│   │   └── api/mcp/route.ts   # servidor MCP (puerta B, Should)
+│   │   ├── api/mcp/route.ts   # servidor MCP (puerta B, Should)
+│   │   ├── .well-known/…      # Protected Resource Metadata (RFC 9728)
+│   │   └── oauth/consent/     # pantalla de consentimiento del modo MCP
 │   ├── components/            # Calendario, ItemBloque, ItemChip, PanelHoy, Chat, LaminaExport, …
 │   ├── services/              # routine.service.ts · agent.service.ts · llm.client.ts
 │   ├── repositories/          # items.repo.ts · completions.repo.ts · chat.repo.ts · categories.repo.ts
@@ -294,7 +318,7 @@ rutia/
 | Diseño inseguro (A04) | Las herramientas del agente nunca reciben `user_id` del modelo; confirmación para borrados masivos |
 | Abuso / coste | Rate limiting por usuario en `/api/chat` (p. ej. 20 mensajes / 5 min) y tope de gasto en el proveedor |
 | Prompt injection | El agente solo puede ejecutar las 6 herramientas, siempre sobre los datos del propio usuario; reglas del system prompt + validación servidor |
-| Tokens del modo MCP | Generados por el usuario, guardados con hash, revocables desde ajustes y limitados a las herramientas sobre sus propios datos |
+| Acceso del modo MCP | OAuth 2.1 con Supabase como servidor de autorización: RutIA no emite tokens. `/api/mcp` valida firma, emisor, vigencia y **audiencia** antes de ejecutar nada, y reenvía el JWT del usuario a PostgREST, así que la RLS sigue siendo la frontera (ninguna clave de servicio en esa ruta). El usuario concede acceso en una pantalla de consentimiento y lo revoca cuando quiera |
 | Datos sensibles (salud) | La medicación es dato personal: RLS estricta, sin analítica de terceros sobre contenidos, y el usuario puede borrar sus ítems |
 
 ---
@@ -349,4 +373,7 @@ Señalados por revisión (CodeRabbit, PR #6) y aplazados en v1 por decisión de 
 5. **`preferences` es leer-mezclar-escribir no atómico** — con `appearance` como única clave el peor caso es last-write-wins entre pestañas. Al añadir una segunda clave hay que pasar a merge atómico en BD (`preferences = preferences || $1` vía función SQL + rpc). Anotado también en `profiles.repo.ts`.
 6. **`24:00` no es editable desde el formulario manual** — `endTimeSchema` acepta `24:00` (la rejilla de §4 llega ahí y Postgres lo admite), pero `<input type="time">` solo llega a 23:59: al abrir un ítem que termine a medianoche, el campo Fin sale vacío y, al ser obligatorio, bloquea el guardado. Sigue siendo latente: el agente (el único camino que podría crear ese valor) normaliza `24:00` → `23:59` en su frontera (`agent.tools.ts`), así que ningún ítem real lo lleva. Si algún día hace falta la medianoche exacta, la opción es la casilla «hasta medianoche» en el formulario.
 7. **Una herramienta ya en vuelo no está acotada por el presupuesto** — `/api/chat` corta por tiempo (`AbortSignal` compartido) las peticiones al proveedor —los reintentos de Anthropic y OpenAI se desactivan porque su espera entre intentos ignora el signal— y deja de despachar herramientas nuevas al vencer, pero una escritura de Supabase que ya haya empezado sigue hasta que responda: en el peor caso, una única consulta colgada agota el `maxDuration` de la función. Aplazado: acotarla exige propagar el signal por toda la API de `RoutineService` y los repositorios (supabase-js lo admite con `.abortSignal()` en cada consulta), y el mismo hueco lo tienen las demás rutas, que también consultan sin límite. Implementación prevista: `AbortSignal` opcional en los repositorios y un parámetro de contexto en el servicio, si alguna vez se observa una consulta lenta real.
-8. **Rate limit del chat sin transacción** — `/api/chat` cuenta filas de `chat_messages` en los últimos 5 minutos antes de escribir (spec §8): dos peticiones simultáneas pueden pasar ambas el conteo y colar un par de mensajes por encima de 20. Aplazado: el exceso realista es de unidades y el tope de gasto vive también en el panel del proveedor. Implementación prevista si hiciera falta: función SQL que cuente e inserte en la misma transacción (o token bucket en BD).
+8. **Tokens personales para el modo MCP, descartados a propósito** — §6.5 los prometía y se retiraron al implementar, no por dejadez: cualquier token propio que preserve la RLS tiene que ser un JWT firmado con la clave del proyecto, y como Supabase no permite extraer las suyas habría que importar y custodiar una ES256 propia (que además podría firmar `role: service_role`, o sea tan sensible como una clave de servicio); la alternativa, token opaco más clave de servicio, se salta la RLS y contradice AGENTS.md. Con OAuth el usuario obtiene lo mismo con consentimiento y revocación reales. Se retomarían si aparece un caso que OAuth no cubra (scripts sin navegador, por ejemplo) y Supabase publica scopes granulares.
+9. **Pantalla de revocación del modo MCP, pendiente** — §6.5 promete que el usuario revoca el acceso cuando quiera, y hoy solo puede hacerlo desde el dashboard de Supabase o desde su cliente. Aplazado a propósito para no ampliar la primera entrega, que se despliega como sonda: el SDK ya expone `listGrants()` y `revokeGrant()`, así que es una pantalla de ajustes con una lista y un botón, sin migración ni cambios de dominio.
+10. **Dependencia de una beta en la puerta B** — el servidor OAuth 2.1 de Supabase está en beta y no publica política de cambios de ruptura; siendo la entrada de escritura del modo MCP, conviene revisarlo antes de anunciar la integración. Mitigación mientras tanto: `/api/mcp` solo depende de la validación estándar del JWT contra el JWKS, así que un cambio en el flujo de autorización no obliga a tocar el servidor de recursos.
+11. **Rate limit del chat sin transacción** — `/api/chat` cuenta filas de `chat_messages` en los últimos 5 minutos antes de escribir (spec §8): dos peticiones simultáneas pueden pasar ambas el conteo y colar un par de mensajes por encima de 20. Aplazado: el exceso realista es de unidades y el tope de gasto vive también en el panel del proveedor. Implementación prevista si hiciera falta: función SQL que cuente e inserte en la misma transacción (o token bucket en BD).

@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { useActionState } from 'react'
+import { LoginLink, RedirectDestination } from '@/components/redirect-destination'
 import { register } from './actions'
 
 export default function RegistroPage() {
@@ -16,6 +18,12 @@ export default function RegistroPage() {
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           Crear cuenta
         </h1>
+
+        {/* igual que en /login: aislado por el límite de Suspense que exige
+            leer la URL, y validado en el servidor con safeRedirect */}
+        <Suspense fallback={null}>
+          <RedirectDestination />
+        </Suspense>
 
         <label className="block space-y-1">
           <span className="text-sm text-zinc-700 dark:text-zinc-300">Email</span>
@@ -63,12 +71,15 @@ export default function RegistroPage() {
 
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           ¿Ya tienes cuenta?{' '}
-          <Link
-            href="/login"
-            className="font-medium text-zinc-900 underline dark:text-zinc-50"
+          <Suspense
+            fallback={
+              <Link href="/login" className="font-medium text-zinc-900 underline dark:text-zinc-50">
+                Inicia sesión
+              </Link>
+            }
           >
-            Inicia sesión
-          </Link>
+            <LoginLink className="font-medium text-zinc-900 underline dark:text-zinc-50" />
+          </Suspense>
         </p>
       </form>
     </main>
