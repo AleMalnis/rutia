@@ -241,7 +241,9 @@ Las mismas de §6.2 **más una de lectura** (`get_routine`), que en el chat inte
 
 #### Notas de implementación
 
-- **Dos eras del protocolo.** La revisión vigente (`2026-07-28`) es sin estado: sin `initialize`, sin sesiones y sin `ping`, con `server/discover`, `tools/list` y `tools/call`. Los clientes actuales todavía hablan revisiones anteriores, así que el endpoint reconoce ambas y rechaza lo desconocido con el error `-32022`. `GET` y `DELETE` responden `405`.
+- **Dos eras del protocolo.** La revisión vigente (`2026-07-28`) es sin estado: sin `initialize`, sin sesiones y sin `ping`, con `server/discover`, `tools/list` y `tools/call`. El endpoint reconoce también las anteriores y rechaza lo desconocido con el error `-32022`. `GET` y `DELETE` responden `405`.
+
+  **Medido en producción (13-08-2026):** Claude declara `2025-11-25`, la era antigua, así que soportarla no es opcional — un servidor que solo hablara la revisión vigente no conectaría. Envía además las cabeceras `MCP-Protocol-Version`, `Mcp-Method` y `Mcp-Name`, que son de la revisión NUEVA, mientras negocia la antigua: está a medio migrar. De ahí que la coincidencia de cabeceras solo se **exija** cuando la era declarada es la moderna; exigirla siempre, o deducir la era de la simple presencia de esas cabeceras, devolvería un `400` en cada llamada de Claude. No sabemos aún qué habla ChatGPT: hasta medirlo, la sonda de diagnóstico (`[mcp-probe]`) se queda.
 - Ambas puertas escriben en la misma base de datos; con Supabase Realtime (*Could*) el calendario abierto en la web se refresca en vivo mientras chateas desde tu cliente.
 
 ---
