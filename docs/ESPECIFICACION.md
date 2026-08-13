@@ -68,7 +68,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 
 ### Could — extras si sobra tiempo
 - Excepciones para una semana concreta (sin romper la plantilla recurrente).
-- Modo MCP avanzado: autenticación **OAuth 2.1** y refresco del calendario **en tiempo real** (Supabase Realtime) mientras chateas desde tu cliente externo.
+- Modo MCP avanzado: refresco del calendario **en tiempo real** (Supabase Realtime) mientras chateas desde tu cliente externo, y pantalla de revocación de accesos dentro de la app.
 - Validación en vivo de la API key al guardarla (botón «Probar» con una llamada mínima al proveedor).
 - Lista de la compra generada desde las comidas que el usuario ha dictado.
 - Avisos del navegador mientras la app está abierta (Notification API).
@@ -352,7 +352,7 @@ rutia/
 | Coste del LLM | Contexto compacto, máx. 5 rondas, rate limiting, tope de gasto en el proveedor |
 | Ámbito salud | La app organiza recordatorios personales que el usuario define; no es un dispositivo médico, no pauta ni ajusta medicación ni dietas. Aviso breve en README y onboarding |
 | El export de imagen da guerra (fuentes, tamaños) | Lámina dedicada con estilos simples y resolución fija; librería `html-to-image`; probarlo en cuanto exista el calendario |
-| Complejidad del modo MCP | Es *Should* y se apoya en el mismo `RoutineService`; v1 con token personal (OAuth 2.1 queda como línea futura) |
+| Complejidad del modo MCP | Es *Should* y se apoya en el mismo `RoutineService`; la autorización se delega en el servidor OAuth 2.1 de Supabase, así que RutIA no implementa ningún servidor de autorización (§6.5) |
 | Servicios gratuitos | Vercel, Supabase y Sentry tienen capa gratuita suficiente para un despliegue personal |
 
 ---
@@ -360,7 +360,7 @@ rutia/
 ## 12. Nombre y roadmap
 
 - Nombre del proyecto: **RutIA** (rutina + IA). Nombre técnico: `rutia`.
-- **Roadmap (líneas futuras):** excepciones semanales, notificaciones push, sugerencia de menús por IA, lista de la compra, estadísticas de hábitos y rachas avanzadas, más formatos de exportación (PDF, tamaños exactos de cada móvil), OAuth 2.1 y tiempo real para el modo MCP, self-hosting completo con docker-compose, Google Calendar, rutinas compartidas, voz, PWA.
+- **Roadmap (líneas futuras):** excepciones semanales, notificaciones push, sugerencia de menús por IA, lista de la compra, estadísticas de hábitos y rachas avanzadas, más formatos de exportación (PDF, tamaños exactos de cada móvil), tiempo real y revocación en la app para el modo MCP, self-hosting completo con docker-compose, Google Calendar, rutinas compartidas, voz, PWA.
 
 ### Endurecimientos aplazados conscientemente (deuda técnica registrada)
 

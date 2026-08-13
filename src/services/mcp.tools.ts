@@ -73,6 +73,9 @@ async function readRoutine(routine: RoutineService, userId: string, now: Date): 
       title: item.title,
       categoria: item.categoryId == null ? null : (nombrePorId.get(item.categoryId) ?? null),
       detail: item.detail,
+      // `notes` viaja aunque sea largo: update_item lo acepta, así que sin
+      // leerlo primero un cliente sobrescribiría a ciegas lo que ya había
+      notes: item.notes,
     })),
   })
 }

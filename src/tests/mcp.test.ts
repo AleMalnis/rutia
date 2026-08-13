@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authenticate, challengeHeader, issuer, McpConfigError, resetKeySetCache, resourceUrl } from '@/lib/mcp/auth'
-import { protectedResourceMetadata } from '@/lib/mcp/metadata'
+import { allowedOrigins, checkOrigin, protectedResourceMetadata } from '@/lib/mcp/metadata'
 import {
   dispatch,
   declaredVersion,
@@ -95,6 +95,44 @@ describe('metadatos RFC 9728', () => {
     // si divergen, el cliente pide un token para una audiencia que luego
     // rechazamos, y el síntoma es imposible de diagnosticar desde fuera
     expect(protectedResourceMetadata().resource).toBe(resourceUrl())
+  })
+})
+
+describe('checkOrigin: quién puede llamar desde un navegador', () => {
+  it('sin Origin se permite: los clientes de verdad llaman de servidor a servidor', () => {
+    expect(checkOrigin(null)).toEqual({ allowed: true, origin: null })
+  })
+
+  it('con Origin y sin lista configurada, se rechaza', () => {
+    // por defecto no hay orígenes de navegador autorizados
+    expect(allowedOrigins()).toEqual([])
+    expect(checkOrigin('https://evil.example')).toEqual({ allowed: false })
+  })
+
+  it('con lista configurada, solo pasa el que está y se devuelve ESE origen', () => {
+    vi.stubEnv('MCP_ALLOWED_ORIGINS', 'http://localhost:6274, https://inspector.example')
+    expect(checkOrigin('http://localhost:6274')).toEqual({
+      allowed: true,
+      origin: 'http://localhost:6274',
+    })
+    expect(checkOrigin('https://inspector.example')).toEqual({
+      allowed: true,
+      origin: 'https://inspector.example',
+    })
+    // un comodín autorizaría a cualquiera: esto no debe pasar
+    expect(checkOrigin('https://evil.example')).toEqual({ allowed: false })
+  })
+
+  it('la coincidencia es exacta: ni subdominios ni prefijos', () => {
+    vi.stubEnv('MCP_ALLOWED_ORIGINS', 'https://app.example')
+    for (const falso of [
+      'https://app.example.evil.com',
+      'https://evil.app.example',
+      'http://app.example',
+      'https://app.example/',
+    ]) {
+      expect(checkOrigin(falso)).toEqual({ allowed: false })
+    }
   })
 })
 

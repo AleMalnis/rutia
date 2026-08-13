@@ -29,6 +29,20 @@ describe('safeRedirect', () => {
     expect(safeRedirect('/app\r\nSet-Cookie: a=b')).toBe('/app')
   })
 
+  it('rechaza cualquier carácter de control, no solo los saltos de línea', () => {
+    const TAB = String.fromCharCode(9)
+    const NUL = String.fromCharCode(0)
+    const DEL = String.fromCharCode(127)
+
+    // el navegador elimina el tabulador y esto se convertiría en
+    // «//evil.example»: una URL absoluta que burlaría la barra inicial
+    expect(safeRedirect(`/${TAB}/evil.example`)).toBe('/app')
+    expect(safeRedirect(`/${TAB}evil.example`)).toBe('/app')
+    expect(safeRedirect(`/\\${TAB}evil.example`)).toBe('/app')
+    expect(safeRedirect(`/app${NUL}`)).toBe('/app')
+    expect(safeRedirect(`/app${DEL}`)).toBe('/app')
+  })
+
   it('sin valor o con basura cae al destino por defecto', () => {
     for (const nada of [null, undefined, '', 42, {}, [], 'app']) {
       expect(safeRedirect(nada)).toBe('/app')
