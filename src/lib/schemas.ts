@@ -59,6 +59,16 @@ export const endTimeSchema = z
 const NUL_CHAR = String.fromCharCode(0)
 const hasNoNul = (value: string) => !value.includes(NUL_CHAR)
 
+// Se comprueba por punto de código y no con un rango en una expresión regular
+// para no escribir caracteres de control literales en este archivo.
+function hasNoControlChars(value: string): boolean {
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0
+    if (code < 0x20 || code === 0x7f) return false
+  }
+  return true
+}
+
 const routineItemFields = {
   title: z
     .string('El título es obligatorio.')
@@ -146,6 +156,33 @@ export const appearanceSchema = z.object({
     .refine((value) => THEME_IDS.includes(value), 'Elige un tema de la lista.'),
   font: z.enum(FONTS, 'Fuente no válida.'),
 })
+
+// ── Destino de vuelta tras autenticarse (spec §6.5) ──────────────────────────
+
+/**
+ * Ruta interna a la que volver después de iniciar sesión. La usa el flujo OAuth
+ * del modo MCP, que manda al usuario a /login y necesita que regrese a la
+ * pantalla de autorización.
+ *
+ * Solo rutas internas: aceptar una URL absoluta convertiría el formulario de
+ * login en un redirector abierto, un vector clásico de phishing («inicia
+ * sesión en la app de verdad y acabas en el sitio del atacante, ya
+ * autenticado»).
+ */
+export const redirectDestinationSchema = z
+  .string('El destino debe ser una ruta.')
+  .min(1, 'El destino no puede estar vacío.')
+  // Los navegadores ELIMINAN tabuladores y saltos de línea de las URLs antes
+  // de resolverlas, así que «/<TAB>/host» se convierte en «//host» —una URL
+  // absoluta— y burlaría la comprobación de la barra inicial de abajo.
+  .refine(hasNoControlChars, 'El destino contiene caracteres no válidos.')
+  .refine((value) => value.startsWith('/'), 'El destino debe ser una ruta interna.')
+  // «//host» lo interpreta el navegador como URL absoluta con el esquema
+  // actual, y «/\host» lo normalizan igual algunos navegadores.
+  .refine(
+    (value) => !value.startsWith('//') && !value.startsWith('/\\'),
+    'El destino debe ser una ruta interna.',
+  )
 
 // ── Clave BYOK (spec §6.4) ───────────────────────────────────────────────────
 

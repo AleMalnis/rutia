@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { mapAuthError } from '@/lib/auth-errors'
+import { safeRedirect } from '@/lib/safe-redirect'
 import { authCredentialsSchema, type AuthFormState } from '@/lib/schemas'
 
 export async function register(
@@ -31,7 +32,9 @@ export async function register(
 
   // Sin confirmación por email hay sesión directa; con ella, solo aviso.
   if (data.session) {
-    redirect('/app')
+    // mismo destino de vuelta que en /login: un usuario nuevo que llega desde
+    // el consentimiento del modo MCP tiene que acabar autorizando, no en /app
+    redirect(safeRedirect(formData.get('redirect')))
   }
   return { info: 'Cuenta creada. Revisa tu correo para confirmarla y después inicia sesión.' }
 }

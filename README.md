@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RutIA
 
-## Getting Started
+Calendario de **rutina semanal recurrente** que se gestiona conversando con un agente de IA. Los
+ítems viven en días de la semana y horas, no en fechas: «gimnasio lunes y miércoles de 19:00 a
+20:30» es un solo ítem que se pinta en los dos días.
 
-First, run the development server:
+Dos puertas de entrada, la misma base de datos:
+
+- **Chat integrado** (`/app`): el usuario pega su propia clave de API (Anthropic, OpenAI o Google)
+  y conversa dentro de la app. La inferencia corre a su cargo.
+- **Modo MCP** (`/api/mcp`): conecta RutIA como servidor MCP a Claude, ChatGPT o tu IDE y gestiona
+  la rutina desde allí, con tu propia suscripción.
+
+La especificación completa —el documento que manda sobre el código— está en
+[`docs/ESPECIFICACION.md`](docs/ESPECIFICACION.md). Las convenciones para trabajar en el repo, en
+[`AGENTS.md`](AGENTS.md).
+
+## Puesta en marcha
 
 ```bash
+npm install
+cp .env.example .env.local   # y rellena los valores
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Necesitas un proyecto de [Supabase](https://supabase.com) (la capa gratuita basta). Ejecuta las
+migraciones de `supabase/migrations/` **en orden numérico** desde el SQL Editor del dashboard.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Variables de entorno: están documentadas una a una en [`.env.example`](.env.example). Ninguna clave
+secreta lleva el prefijo `NEXT_PUBLIC_`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint        # ESLint
+npm run typecheck   # tsc --noEmit
+npm run test        # Vitest
+```
 
-## Learn More
+## Modo MCP
 
-To learn more about Next.js, take a look at the following resources:
+`/api/mcp` es un **servidor de recursos OAuth 2.1**: no emite tokens. Los emite el servidor OAuth de
+Supabase, y RutIA los valida contra el JWKS del proyecto y los reenvía a la base de datos, de forma
+que la *Row Level Security* sigue siendo la frontera de seguridad. Ninguna clave de servicio
+interviene en esa ruta.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Activación (una sola vez)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**1. Migración.** Abre `supabase/migrations/0004_mcp_access_token_hook.sql`, cambia la URL del
+`insert` por la de tu dominio (`https://TU-DOMINIO/api/mcp`) y ejecútalo en el SQL Editor.
 
-## Deploy on Vercel
+**2. Variable de entorno.** Añade `MCP_RESOURCE_URL` con **exactamente** esa misma URL, en local y
+en tu plataforma de despliegue. Si no coincide con la de la migración, los tokens se rechazarán con
+un 401 y el motivo no se ve desde el cliente.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**3. Dashboard de Supabase → Authentication:**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Dónde | Qué |
+|---|---|
+| OAuth Server | Activarlo (está en beta) |
+| OAuth Server → Authorization Path | `/oauth/consent` |
+| OAuth Server → Dynamic Client Registration | Activarlo. Es imprescindible para ChatGPT, que no admite credenciales pegadas a mano |
+| Hooks → Customize Access Token | Activar y apuntar a `public.mcp_access_token_hook` |
+| URL Configuration → Site URL | Tu dominio de producción |
+
+> El registro dinámico permite que **cualquier** cliente MCP se registre, así que la pantalla de
+> consentimiento es el control real: solo autoriza clientes que reconozcas.
+
+**4. Despliega** y comprueba que los metadatos responden:
+
+```bash
+curl https://TU-DOMINIO/.well-known/oauth-protected-resource
+```
+
+Debe devolver un JSON con `resource` y `authorization_servers`.
+
+### Conectar un cliente
+
+En **Claude** (Settings → Connectors → Add custom connector) o en tu **IDE**, añade la URL
+`https://TU-DOMINIO/api/mcp`. El cliente descubre solo el servidor de autorización, te lleva a la
+pantalla de consentimiento y a partir de ahí funciona.
+
+En **ChatGPT** hay que activar el *modo desarrollador* en Ajustes → Conectores. Ten en cuenta que
+las acciones de escritura en conectores propios pueden estar limitadas según el plan.
+
+### Herramientas expuestas
+
+`get_routine` (lectura, para obtener los identificadores), `create_item`, `update_item`,
+`delete_items`, `clear_day`, `bulk_create_items` y `set_completed`. Las descripciones que ve el
+cliente son el único «prompt» de esta puerta, así que están redactadas con ese cuidado.
+
+Para revocar el acceso de un cliente, hoy hay que hacerlo desde el dashboard de Supabase o desde el
+propio cliente. La pantalla de revocación dentro de la app está pendiente: el SDK ya expone
+`listGrants()` y `revokeGrant()`, así que es el siguiente paso natural de esta puerta.
+
+## Licencia
+
+MIT — ver [LICENSE](LICENSE).
