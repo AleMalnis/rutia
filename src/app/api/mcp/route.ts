@@ -167,8 +167,11 @@ export async function POST(request: Request) {
 // así que GET y DELETE se rechazan explícitamente en vez de dejar que Next
 // responda un 405 sin cuerpo JSON-RPC.
 function methodNotAllowed() {
+  // sin `id`: no hay petición JSON-RPC que correlacionar, y el protocolo tipa
+  // el id como cadena o número, así que un null hace que un cliente estricto
+  // descarte la respuesta entera
   return NextResponse.json(
-    { jsonrpc: '2.0', id: null, error: { code: -32601, message: 'Solo se admite POST.' } },
+    { jsonrpc: '2.0', error: { code: -32601, message: 'Solo se admite POST.' } },
     { status: 405, headers: { ...NO_STORE, Allow: 'POST, OPTIONS' } },
   )
 }
