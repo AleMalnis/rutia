@@ -9,7 +9,7 @@
 export const RESPONSABLE = 'Alejandro Victor Malnis'
 
 /** Canal para ejercer derechos y para cualquier duda de privacidad. */
-export const CONTACTO = 'malnis.ale@gmail.com'
+export const CONTACTO = 'intermalnisalevalor@gmail.com'
 
 export const REPOSITORIO = 'https://github.com/AleMalnis/rutia'
 
