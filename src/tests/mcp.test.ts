@@ -458,4 +458,46 @@ describe('catálogo de herramientas MCP', () => {
       expect(tool.description.length).toBeGreaterThan(40)
     }
   })
+
+  it('todas llevan título y anotaciones, y ninguna se declara de mundo abierto', () => {
+    for (const tool of MCP_TOOLS) {
+      expect(tool.title.length).toBeGreaterThan(0)
+      // el cliente confía en esto para decidir si pedir confirmación: una sin
+      // anotar se trata como si pudiera destruir datos
+      expect(tool.annotations.openWorldHint).toBe(false)
+    }
+  })
+
+  it('solo get_routine es de solo lectura, y no se declara destructiva', () => {
+    for (const tool of MCP_TOOLS) {
+      const soloLectura = tool.name === 'get_routine'
+      expect(tool.annotations.readOnlyHint ?? false).toBe(soloLectura)
+      if (soloLectura) expect(tool.annotations.destructiveHint).toBeUndefined()
+    }
+  })
+
+  it('destructiva solo lo que puede perder datos que ya existían', () => {
+    const destructivas = MCP_TOOLS.filter((tool) => tool.annotations.destructiveHint === true)
+      .map((tool) => tool.name)
+      .sort()
+    expect(destructivas).toEqual(['clear_day', 'delete_items', 'update_item'])
+  })
+
+  it('la descripción de get_routine describe, no da órdenes al modelo', () => {
+    const lectura = MCP_TOOLS.find((tool) => tool.name === 'get_routine')
+    expect(lectura?.description).toBeDefined()
+    // el cliente MCP decide su propia estrategia; el servidor solo declara qué
+    // devuelve cada herramienta
+    for (const imperativo of ['Llámala', 'llámala', 'nunca deben', 'ANTES de']) {
+      expect(lectura?.description).not.toContain(imperativo)
+    }
+  })
+
+  it('tools/list publica título y anotaciones', async () => {
+    const respuesta = await dispatch(rpc('tools/list'), opciones)
+    const publicadas = (respuesta.body as { result: { tools: typeof MCP_TOOLS } }).result.tools
+    const lectura = publicadas.find((tool) => tool.name === 'get_routine')
+    expect(lectura?.title).toBe('Consultar la rutina')
+    expect(lectura?.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: false })
+  })
 })

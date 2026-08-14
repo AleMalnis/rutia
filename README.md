@@ -78,6 +78,16 @@ En **Claude** (Settings → Connectors → Add custom connector) o en tu **IDE**
 `https://TU-DOMINIO/api/mcp`. El cliente descubre solo el servidor de autorización, te lleva a la
 pantalla de consentimiento y a partir de ahí funciona.
 
+En Claude también sirve un enlace que abre el diálogo con la URL ya puesta, para no copiarla a mano:
+
+```
+https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=RutIA&connectorUrl=https%3A%2F%2FTU-DOMINIO%2Fapi%2Fmcp
+```
+
+Sustituye `TU-DOMINIO` codificado (`%2F` son las barras). Para la instancia pública:
+[**Conectar RutIA a Claude**](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=RutIA&connectorUrl=https%3A%2F%2Frutia-six.vercel.app%2Fapi%2Fmcp).
+El enlace solo rellena el formulario: sigue habiendo que confirmar y pasar por el consentimiento.
+
 En **ChatGPT** hay que activar el *modo desarrollador* en Ajustes → Conectores. Ten en cuenta que
 las acciones de escritura en conectores propios pueden estar limitadas según el plan.
 
@@ -86,6 +96,11 @@ las acciones de escritura en conectores propios pueden estar limitadas según el
 `get_routine` (lectura, para obtener los identificadores), `create_item`, `update_item`,
 `delete_items`, `clear_day`, `bulk_create_items` y `set_completed`. Las descripciones que ve el
 cliente son el único «prompt» de esta puerta, así que están redactadas con ese cuidado.
+
+Cada una viaja con título y anotaciones (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+`openWorldHint`) para que el cliente sepa a qué pedir confirmación. Se declaran con precisión, no
+en bloque: `get_routine` es de solo lectura, crear no destruye nada, y solo `update_item`,
+`delete_items` y `clear_day` van marcadas como destructivas.
 
 Para revocar el acceso de un cliente, hoy hay que hacerlo desde el dashboard de Supabase o desde el
 propio cliente. La pantalla de revocación dentro de la app está pendiente: el SDK ya expone
