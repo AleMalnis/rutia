@@ -32,6 +32,7 @@ export function RoutineBoard({
   appearance,
   chatMessages,
   llmStatus: initialLlmStatus,
+  mcpUrl,
   children,
 }: {
   items: RoutineItem[]
@@ -42,6 +43,8 @@ export function RoutineBoard({
   appearance: Appearance
   chatMessages: ChatUiMessage[]
   llmStatus: LlmKeyStatusView | null
+  /** URL del servidor MCP, o null si este despliegue no lo tiene activado. */
+  mcpUrl: string | null
   // la cabecera de la página se recibe como slot para que quede DENTRO del
   // contenedor inert: si no, con el diálogo abierto se puede tabular hasta
   // «Cerrar sesión» y cerrar sesión perdiendo lo que se estaba editando
@@ -226,7 +229,12 @@ export function RoutineBoard({
       )}
 
       {dialog?.type === 'ia' && (
-        <LlmSettingsDialog status={llmStatus} onStatusChange={setLlmStatus} onClose={close} />
+        <LlmSettingsDialog
+          status={llmStatus}
+          mcpUrl={mcpUrl}
+          onStatusChange={setLlmStatus}
+          onClose={close}
+        />
       )}
     </>
   )

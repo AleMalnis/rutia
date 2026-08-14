@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authenticate, challengeHeader, issuer, McpConfigError, resetKeySetCache, resourceUrl } from '@/lib/mcp/auth'
+import { claudeConnectUrl, mcpServerUrl } from '@/lib/mcp/connect'
 import { allowedOrigins, checkOrigin, protectedResourceMetadata } from '@/lib/mcp/metadata'
 import {
   dispatch,
@@ -422,6 +423,45 @@ describe('tools/call', () => {
     const response = await dispatch(rpc('resources/read'), opciones)
     expect(response.status).toBe(404)
     expect(response.body?.error).toMatchObject({ code: ERROR_CODES.methodNotFound })
+  })
+})
+
+describe('datos de conexión para el usuario final', () => {
+  it('mcpServerUrl devuelve la URL configurada, sin espacios sobrantes', () => {
+    vi.stubEnv('MCP_RESOURCE_URL', `  ${RESOURCE}  `)
+    expect(mcpServerUrl()).toBe(RESOURCE)
+  })
+
+  it('lo que muestra la interfaz y lo que valida el servidor no pueden divergir', () => {
+    // dos lectores de la misma variable que no coincidieran darían el fallo que
+    // parece bien: enlace correcto en pantalla y 401 en cada llamada
+    for (const valor of [RESOURCE, `  ${RESOURCE}`, `${RESOURCE}\n`]) {
+      vi.stubEnv('MCP_RESOURCE_URL', valor)
+      expect(mcpServerUrl()).toBe(resourceUrl())
+    }
+  })
+
+  it('sin configurar devuelve null en vez de lanzar: la interfaz solo oculta la sección', () => {
+    for (const valor of ['', '   ']) {
+      vi.stubEnv('MCP_RESOURCE_URL', valor)
+      expect(mcpServerUrl()).toBeNull()
+    }
+  })
+
+  it('el enlace de un clic codifica la URL dentro de la URL', () => {
+    // la cadena exacta que se comprobó a mano en claude.ai: construir esto
+    // concatenando se rompe callado, y el fallo solo se ve al pulsarlo
+    expect(claudeConnectUrl(RESOURCE)).toBe(
+      'https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=RutIA&connectorUrl=https%3A%2F%2Frutia-six.vercel.app%2Fapi%2Fmcp',
+    )
+  })
+
+  it('el enlace sirve para cualquier dominio, no solo el de la instancia pública', () => {
+    const enlace = claudeConnectUrl('https://rutina.ejemplo.org/api/mcp')
+    expect(enlace).toContain('connectorUrl=https%3A%2F%2Frutina.ejemplo.org%2Fapi%2Fmcp')
+    // y la URL de destino se puede recuperar tal cual, sin doble codificación
+    const recuperada = new URL(enlace).searchParams.get('connectorUrl')
+    expect(recuperada).toBe('https://rutina.ejemplo.org/api/mcp')
   })
 })
 

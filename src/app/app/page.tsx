@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { RoutineBoard } from '@/components/routine-board'
 import { SecretConfigError } from '@/lib/crypto'
+import { mcpServerUrl } from '@/lib/mcp/connect'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
@@ -91,6 +92,8 @@ export default async function AppPage() {
           content: message.content,
         }))}
         llmStatus={llmStatus}
+        // se resuelve en el servidor: MCP_RESOURCE_URL no es NEXT_PUBLIC_
+        mcpUrl={mcpServerUrl()}
       >
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
