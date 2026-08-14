@@ -81,6 +81,15 @@ export default function LoginPage() {
             <RegisterLink className="font-medium text-zinc-900 underline dark:text-zinc-50" />
           </Suspense>
         </p>
+
+        <p className="space-x-3 text-xs text-zinc-500 dark:text-zinc-400">
+          <Link href="/legal/privacidad" className="underline">
+            Privacidad
+          </Link>
+          <Link href="/legal/terminos" className="underline">
+            Términos
+          </Link>
+        </p>
       </form>
     </main>
   )

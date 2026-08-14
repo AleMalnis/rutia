@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { RoutineBoard } from '@/components/routine-board'
 import { SecretConfigError } from '@/lib/crypto'
@@ -95,6 +96,16 @@ export default async function AppPage() {
           <div>
             <h1 className="text-lg font-semibold text-ink">RutIA</h1>
             <p className="text-sm text-ink-3">{email}</p>
+            {/* dentro del tablero, como el resto de la cabecera: así el `inert`
+                del diálogo de edición también cubre estos enlaces */}
+            <p className="mt-0.5 space-x-3 text-xs text-ink-3">
+              <Link href="/legal/privacidad" className="underline">
+                Privacidad
+              </Link>
+              <Link href="/legal/terminos" className="underline">
+                Términos
+              </Link>
+            </p>
           </div>
           <form action={logout}>
             <button

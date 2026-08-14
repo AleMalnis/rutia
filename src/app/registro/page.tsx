@@ -69,6 +69,22 @@ export default function RegistroPage() {
           {isPending ? 'Creando cuenta…' : 'Crear cuenta'}
         </button>
 
+        {/* Los textos legales se enlazan aquí, donde se crea la cuenta: es el
+            momento en que se aceptan. No hay casilla que marcar, así que el
+            aviso tiene que estar a la vista junto al botón. */}
+        <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+          Al crear la cuenta aceptas los{' '}
+          <Link href="/legal/terminos" className="underline">
+            términos de uso
+          </Link>{' '}
+          y la{' '}
+          <Link href="/legal/privacidad" className="underline">
+            política de privacidad
+          </Link>
+          . El chat requiere tu propia clave de API, y RutIA no verifica lo que escribas: no
+          sustituye a un profesional sanitario.
+        </p>
+
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           ¿Ya tienes cuenta?{' '}
           <Suspense

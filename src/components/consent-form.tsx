@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { approveConsent, denyConsent } from '@/app/oauth/consent/actions'
 
@@ -8,7 +9,10 @@ import { approveConsent, denyConsent } from '@/app/oauth/consent/actions'
 // del usuario, y esta pantalla es el único control real sobre quién entra.
 
 const PERMISOS = [
-  'Ver tu rutina semanal completa, tus categorías y lo que te toca hoy',
+  // get_routine devuelve también `notes`, que el chat integrado no envía nunca:
+  // decirlo aquí es la diferencia entre un consentimiento informado y uno que
+  // solo lo parece
+  'Ver tu rutina semanal completa, con sus notas, tus categorías y lo que te toca hoy',
   'Crear ítems nuevos, de uno en uno o en lote',
   'Editar, mover o cambiar el detalle de ítems existentes',
   'Borrar ítems y vaciar días enteros',
@@ -77,9 +81,25 @@ export function ConsentForm({
         ))}
       </ul>
 
-      <p className="mt-4 text-xs text-neutral-500 dark:text-neutral-400">
+      {/* La lista de arriba describe las herramientas, no un límite técnico: el
+          token que se entrega conserva la audiencia `authenticated` (migración
+          0004) para seguir sirviendo contra la Data API, y no se validan
+          scopes. Con la clave anónima, que es pública, el cliente alcanza todo
+          lo que la RLS permite a ese usuario. Decirlo aquí es la diferencia
+          entre un consentimiento informado y uno que solo lo parece. */}
+      <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+        Esa lista describe lo que hacen las herramientas, pero el acceso que concedes tiene el mismo
+        alcance que tu propia sesión: nunca datos de otra persona, aunque sí cualquiera de los
+        tuyos, incluida tu conversación del chat. Autoriza solo si reconoces la aplicación.
+      </p>
+
+      <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
         Podrás revocar este acceso cuando quieras desde el panel de Supabase o desde la propia
-        aplicación.
+        aplicación. Lo que esa aplicación haga con tu rutina se rige por sus condiciones, no por{' '}
+        <Link href="/legal/privacidad" className="underline">
+          las nuestras
+        </Link>
+        .
       </p>
 
       {error && (
