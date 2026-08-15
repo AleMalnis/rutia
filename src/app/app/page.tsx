@@ -1,6 +1,8 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { RoutineBoard } from '@/components/routine-board'
 import { SecretConfigError } from '@/lib/crypto'
+import { mcpServerUrl } from '@/lib/mcp/connect'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
@@ -90,11 +92,23 @@ export default async function AppPage() {
           content: message.content,
         }))}
         llmStatus={llmStatus}
+        // se resuelve en el servidor: MCP_RESOURCE_URL no es NEXT_PUBLIC_
+        mcpUrl={mcpServerUrl()}
       >
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-lg font-semibold text-ink">RutIA</h1>
             <p className="text-sm text-ink-3">{email}</p>
+            {/* dentro del tablero, como el resto de la cabecera: así el `inert`
+                del diálogo de edición también cubre estos enlaces */}
+            <p className="mt-0.5 space-x-3 text-xs text-ink-3">
+              <Link href="/legal/privacidad" className="underline">
+                Privacidad
+              </Link>
+              <Link href="/legal/terminos" className="underline">
+                Términos
+              </Link>
+            </p>
           </div>
           <form action={logout}>
             <button

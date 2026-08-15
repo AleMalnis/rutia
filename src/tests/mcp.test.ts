@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authenticate, challengeHeader, issuer, McpConfigError, resetKeySetCache, resourceUrl } from '@/lib/mcp/auth'
+import { claudeConnectUrl, mcpServerUrl } from '@/lib/mcp/connect'
 import { allowedOrigins, checkOrigin, protectedResourceMetadata } from '@/lib/mcp/metadata'
 import {
   dispatch,
@@ -425,6 +426,45 @@ describe('tools/call', () => {
   })
 })
 
+describe('datos de conexión para el usuario final', () => {
+  it('mcpServerUrl devuelve la URL configurada, sin espacios sobrantes', () => {
+    vi.stubEnv('MCP_RESOURCE_URL', `  ${RESOURCE}  `)
+    expect(mcpServerUrl()).toBe(RESOURCE)
+  })
+
+  it('lo que muestra la interfaz y lo que valida el servidor no pueden divergir', () => {
+    // dos lectores de la misma variable que no coincidieran darían el fallo que
+    // parece bien: enlace correcto en pantalla y 401 en cada llamada
+    for (const valor of [RESOURCE, `  ${RESOURCE}`, `${RESOURCE}\n`]) {
+      vi.stubEnv('MCP_RESOURCE_URL', valor)
+      expect(mcpServerUrl()).toBe(resourceUrl())
+    }
+  })
+
+  it('sin configurar devuelve null en vez de lanzar: la interfaz solo oculta la sección', () => {
+    for (const valor of ['', '   ']) {
+      vi.stubEnv('MCP_RESOURCE_URL', valor)
+      expect(mcpServerUrl()).toBeNull()
+    }
+  })
+
+  it('el enlace de un clic codifica la URL dentro de la URL', () => {
+    // la cadena exacta que se comprobó a mano en claude.ai: construir esto
+    // concatenando se rompe callado, y el fallo solo se ve al pulsarlo
+    expect(claudeConnectUrl(RESOURCE)).toBe(
+      'https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=RutIA&connectorUrl=https%3A%2F%2Frutia-six.vercel.app%2Fapi%2Fmcp',
+    )
+  })
+
+  it('el enlace sirve para cualquier dominio, no solo el de la instancia pública', () => {
+    const enlace = claudeConnectUrl('https://rutina.ejemplo.org/api/mcp')
+    expect(enlace).toContain('connectorUrl=https%3A%2F%2Frutina.ejemplo.org%2Fapi%2Fmcp')
+    // y la URL de destino se puede recuperar tal cual, sin doble codificación
+    const recuperada = new URL(enlace).searchParams.get('connectorUrl')
+    expect(recuperada).toBe('https://rutina.ejemplo.org/api/mcp')
+  })
+})
+
 describe('catálogo de herramientas MCP', () => {
   it('son las 6 del chat más la de lectura', () => {
     const nombres = MCP_TOOLS.map((tool) => tool.name)
@@ -457,5 +497,47 @@ describe('catálogo de herramientas MCP', () => {
     for (const tool of MCP_TOOLS) {
       expect(tool.description.length).toBeGreaterThan(40)
     }
+  })
+
+  it('todas llevan título y anotaciones, y ninguna se declara de mundo abierto', () => {
+    for (const tool of MCP_TOOLS) {
+      expect(tool.title.length).toBeGreaterThan(0)
+      // el cliente confía en esto para decidir si pedir confirmación: una sin
+      // anotar se trata como si pudiera destruir datos
+      expect(tool.annotations.openWorldHint).toBe(false)
+    }
+  })
+
+  it('solo get_routine es de solo lectura, y no se declara destructiva', () => {
+    for (const tool of MCP_TOOLS) {
+      const soloLectura = tool.name === 'get_routine'
+      expect(tool.annotations.readOnlyHint ?? false).toBe(soloLectura)
+      if (soloLectura) expect(tool.annotations.destructiveHint).toBeUndefined()
+    }
+  })
+
+  it('destructiva solo lo que puede perder datos que ya existían', () => {
+    const destructivas = MCP_TOOLS.filter((tool) => tool.annotations.destructiveHint === true)
+      .map((tool) => tool.name)
+      .sort()
+    expect(destructivas).toEqual(['clear_day', 'delete_items', 'update_item'])
+  })
+
+  it('la descripción de get_routine describe, no da órdenes al modelo', () => {
+    const lectura = MCP_TOOLS.find((tool) => tool.name === 'get_routine')
+    expect(lectura?.description).toBeDefined()
+    // el cliente MCP decide su propia estrategia; el servidor solo declara qué
+    // devuelve cada herramienta
+    for (const imperativo of ['Llámala', 'llámala', 'nunca deben', 'ANTES de']) {
+      expect(lectura?.description).not.toContain(imperativo)
+    }
+  })
+
+  it('tools/list publica título y anotaciones', async () => {
+    const respuesta = await dispatch(rpc('tools/list'), opciones)
+    const publicadas = (respuesta.body as { result: { tools: typeof MCP_TOOLS } }).result.tools
+    const lectura = publicadas.find((tool) => tool.name === 'get_routine')
+    expect(lectura?.title).toBe('Consultar la rutina')
+    expect(lectura?.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: false })
   })
 })

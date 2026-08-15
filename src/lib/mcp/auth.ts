@@ -36,7 +36,12 @@ export type AuthFailure = {
  * de la migración 0004 y con el `resource` de los metadatos.
  */
 export function resourceUrl(): string {
-  const base = process.env.MCP_RESOURCE_URL
+  // Se recorta porque el valor con el que se compara no puede llevar espacios:
+  // `mcp_config.resource_url` lo prohíbe con un check (migración 0004). Sin
+  // esto, un espacio de más al pegar la variable en el panel de despliegue
+  // daría un 401 en cada llamada, y `mcpServerUrl()` mostraría entretanto la
+  // URL correcta en la interfaz: el peor fallo posible, el que parece bien.
+  const base = process.env.MCP_RESOURCE_URL?.trim()
   if (!base) {
     throw new McpConfigError('Falta MCP_RESOURCE_URL en el entorno del servidor.')
   }

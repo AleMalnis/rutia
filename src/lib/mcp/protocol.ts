@@ -55,7 +55,34 @@ export type ToolRunner = (
   args: Record<string, unknown>,
 ) => Promise<{ text: string; isError: boolean }>
 
-export type ToolListing = { name: string; description: string; inputSchema: Record<string, unknown> }
+/**
+ * Pistas sobre lo que hace la herramienta. El cliente las usa para decidir a
+ * quién pedir confirmación, así que se declaran con precisión: marcarlas todas
+ * como destructivas haría que hasta una lectura interrumpiese al usuario.
+ */
+export type ToolAnnotations = {
+  /** No modifica nada. */
+  readOnlyHint?: boolean
+  /** Puede sobrescribir o eliminar datos que ya existían. */
+  destructiveHint?: boolean
+  /** Repetirla con los mismos argumentos deja el mismo estado. */
+  idempotentHint?: boolean
+  /** Toca sistemas externos, no solo los datos de la propia app. */
+  openWorldHint?: boolean
+}
+
+/**
+ * Herramienta tal como se publica en `tools/list`. `title` y `annotations` son
+ * opcionales en el protocolo y los clientes que no las conocen las ignoran, así
+ * que viajan igual en las dos eras.
+ */
+export type ToolListing = {
+  name: string
+  title?: string
+  description: string
+  inputSchema: Record<string, unknown>
+  annotations?: ToolAnnotations
+}
 
 /**
  * Respuesta de error. El `id` se OMITE si no se pudo leer, en vez de mandar

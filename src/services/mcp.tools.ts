@@ -1,4 +1,5 @@
 import { DAY_NAMES } from '@/lib/calendar'
+import type { ToolAnnotations, ToolListing } from '@/lib/mcp/protocol'
 import { AGENT_TOOLS, executeAgentTool } from '@/services/agent.tools'
 import type { RoutineService } from '@/services/routine.service'
 
@@ -12,27 +13,77 @@ import type { RoutineService } from '@/services/routine.service'
 // podría conocer los identificadores que exigen update_item, delete_items y
 // set_completed. Añadirla al chat sería gastar rondas para nada.
 
-export type McpToolDef = {
-  name: string
-  description: string
-  inputSchema: Record<string, unknown>
-}
+/**
+ * Una herramienta publicada, con título y anotaciones OBLIGATORIOS: en el
+ * protocolo son opcionales, pero aquí se exigen para que ninguna salga sin
+ * anotar y el cliente tenga que suponer que puede destruir datos.
+ */
+export type McpToolDef = ToolListing & { title: string; annotations: ToolAnnotations }
 
 const GET_ROUTINE: McpToolDef = {
   name: 'get_routine',
+  title: 'Consultar la rutina',
+  // Descriptiva, no imperativa: dice QUÉ devuelve, y que ahí están los
+  // identificadores que las demás herramientas necesitan. Antes daba
+  // instrucciones de comportamiento al modelo, que es justo lo que los
+  // criterios de revisión piden evitar.
   description:
-    'Devuelve la rutina semanal completa del usuario con los identificadores de cada ítem, sus categorías y qué toca hoy con su estado de completado. Llámala ANTES de editar, borrar o marcar algo: los identificadores que necesitan las demás herramientas solo se obtienen aquí, y nunca deben inventarse.',
+    'Devuelve la rutina semanal completa del usuario: cada ítem con su identificador, tipo, días, horas, categoría, detalle y notas; la lista de categorías; y lo que toca hoy con su estado de completado. Los identificadores de ítem que requieren las herramientas de edición, borrado y completado provienen de aquí.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}
+
+/**
+ * Título y anotaciones de cada herramienta de escritura. `destructiveHint` se
+ * reserva a las que pueden perder datos que ya existían: crear no destruye
+ * nada, mientras que editar sobrescribe valores y borrar o vaciar un día
+ * eliminan ítems.
+ */
+const WRITE_METADATA: Record<string, { title: string; annotations: ToolAnnotations }> = {
+  create_item: {
+    title: 'Crear un ítem',
+    annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  update_item: {
+    title: 'Editar un ítem',
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  delete_items: {
+    title: 'Borrar ítems',
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  clear_day: {
+    title: 'Vaciar un día',
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  bulk_create_items: {
+    title: 'Crear varios ítems',
+    annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  set_completed: {
+    title: 'Marcar como hecho',
+    annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
 }
 
 /** Las 7 herramientas que ve un cliente MCP. */
 export const MCP_TOOLS: McpToolDef[] = [
   GET_ROUTINE,
-  ...AGENT_TOOLS.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-  })),
+  ...AGENT_TOOLS.map((tool) => {
+    const meta = WRITE_METADATA[tool.name]
+    if (meta == null) {
+      // una herramienta nueva en el chat sin metadatos aquí saldría al mundo
+      // sin anotar, y el cliente la trataría como si pudiera destruir datos
+      throw new Error(`Falta el título y las anotaciones MCP de la herramienta ${tool.name}.`)
+    }
+    return {
+      name: tool.name,
+      title: meta.title,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      annotations: meta.annotations,
+    }
+  }),
 ]
 
 export type McpToolResult = {
