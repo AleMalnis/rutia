@@ -17,7 +17,11 @@ export const config = {
   // sesión inútil en cada petición y podría colgarle un Set-Cookie ajeno a
   // la respuesta de un cliente externo. Los metadatos, además, son públicos
   // por definición: un cliente los pide ANTES de tener cualquier token.
+  //
+  // manifest.webmanifest (spec §4): público por definición, como los iconos
+  // que ya excluye la regla de extensiones; el navegador lo pide fuera de la
+  // sesión y verificarla ahí solo gasta.
   matcher: [
-    '/((?!api/mcp|\\.well-known/oauth-protected-resource|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/mcp|\\.well-known/oauth-protected-resource|manifest\\.webmanifest|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

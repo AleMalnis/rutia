@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Lora, Nunito } from "next/font/google";
 import "./globals.css";
 
@@ -27,6 +27,23 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "RutIA",
   description: "Tu semana, organizada conversando.",
+  // PWA (spec §4): instalada en iOS se abre a pantalla completa con su nombre;
+  // el manifest lo enlaza Next solo (src/app/manifest.ts) y el icono de iOS
+  // sale de la convención src/app/apple-icon.png
+  appleWebApp: {
+    capable: true,
+    title: "RutIA",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  // el color de la barra del navegador/estado sigue al modo del sistema; el
+  // theme_color del manifest no admite media queries, por eso este sí y aquel no
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
 };
 
 export default function RootLayout({
