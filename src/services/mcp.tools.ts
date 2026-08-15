@@ -30,14 +30,16 @@ const GET_ROUTINE: McpToolDef = {
   description:
     'Devuelve la rutina semanal completa del usuario: cada ítem con su identificador, tipo, días, horas, categoría, detalle y notas; la lista de categorías; y lo que toca hoy con su estado de completado. Los identificadores de ítem que requieren las herramientas de edición, borrado y completado provienen de aquí.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  annotations: { readOnlyHint: true, openWorldHint: false },
+  annotations: { title: 'Consultar la rutina', readOnlyHint: true, openWorldHint: false },
 }
 
 /**
  * Título y anotaciones de cada herramienta de escritura. `destructiveHint` se
  * reserva a las que pueden perder datos que ya existían: crear no destruye
- * nada, mientras que editar sobrescribe valores y borrar o vaciar un día
- * eliminan ítems.
+ * nada, mientras que editar sobrescribe valores, borrar o vaciar un día
+ * eliminan ítems, y desmarcar un completado (`set_completed` con done=false)
+ * elimina una fila de completions que existía — la spec define «no
+ * destructiva» como solo-aditiva, y esa rama no lo es.
  */
 const WRITE_METADATA: Record<string, { title: string; annotations: ToolAnnotations }> = {
   create_item: {
@@ -62,7 +64,7 @@ const WRITE_METADATA: Record<string, { title: string; annotations: ToolAnnotatio
   },
   set_completed: {
     title: 'Marcar como hecho',
-    annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
 }
 
@@ -81,7 +83,9 @@ export const MCP_TOOLS: McpToolDef[] = [
       title: meta.title,
       description: tool.description,
       inputSchema: tool.inputSchema,
-      annotations: meta.annotations,
+      // el título viaja también dentro de annotations: es donde lo busca la
+      // revisión 2025-03-26, que no tiene title a nivel de herramienta
+      annotations: { title: meta.title, ...meta.annotations },
     }
   }),
 ]

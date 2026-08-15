@@ -520,7 +520,63 @@ describe('catálogo de herramientas MCP', () => {
     const destructivas = MCP_TOOLS.filter((tool) => tool.annotations.destructiveHint === true)
       .map((tool) => tool.name)
       .sort()
-    expect(destructivas).toEqual(['clear_day', 'delete_items', 'update_item'])
+    // set_completed está porque desmarcar (done=false) BORRA una completion
+    // que existía: la spec define no-destructiva como solo-aditiva
+    expect(destructivas).toEqual(['clear_day', 'delete_items', 'set_completed', 'update_item'])
+  })
+
+  it('las anotaciones completas de cada herramienta, con igualdad estricta', () => {
+    // igualdad estricta y no matchers parciales: un hint omitido hereda el
+    // default del protocolo (destructiveHint true, openWorldHint true), así
+    // que una omisión accidental cambia el contrato sin romper ningún parcial
+    const esperadas: Record<string, unknown> = {
+      get_routine: { title: 'Consultar la rutina', readOnlyHint: true, openWorldHint: false },
+      create_item: {
+        title: 'Crear un ítem',
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+      update_item: {
+        title: 'Editar un ítem',
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      delete_items: {
+        title: 'Borrar ítems',
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      clear_day: {
+        title: 'Vaciar un día',
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      bulk_create_items: {
+        title: 'Crear varios ítems',
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+      set_completed: {
+        title: 'Marcar como hecho',
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    }
+    expect(Object.fromEntries(MCP_TOOLS.map((tool) => [tool.name, tool.annotations]))).toEqual(
+      esperadas,
+    )
+  })
+
+  it('el título viaja también en annotations.title, donde lo busca la revisión 2025-03-26', () => {
+    for (const tool of MCP_TOOLS) {
+      expect(tool.annotations.title).toBe(tool.title)
+    }
   })
 
   it('la descripción de get_routine describe, no da órdenes al modelo', () => {

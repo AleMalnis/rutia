@@ -99,8 +99,9 @@ cliente son el único «prompt» de esta puerta, así que están redactadas con 
 
 Cada una viaja con título y anotaciones (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) para que el cliente sepa a qué pedir confirmación. Se declaran con precisión, no
-en bloque: `get_routine` es de solo lectura, crear no destruye nada, y solo `update_item`,
-`delete_items` y `clear_day` van marcadas como destructivas.
+en bloque: `get_routine` es de solo lectura y crear no destruye nada; van marcadas como
+destructivas `update_item`, `delete_items`, `clear_day` y también `set_completed`, porque
+desmarcar un completado elimina un registro que existía.
 
 Para revocar el acceso de un cliente, hoy hay que hacerlo desde el dashboard de Supabase o desde el
 propio cliente. La pantalla de revocación dentro de la app está pendiente: el SDK ya expone
