@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { InstallHint } from '@/components/install-hint'
 import { RoutineBoard } from '@/components/routine-board'
 import { SecretConfigError } from '@/lib/crypto'
 import { mcpServerUrl } from '@/lib/mcp/connect'
@@ -95,6 +96,9 @@ export default async function AppPage() {
         // se resuelve en el servidor: MCP_RESOURCE_URL no es NEXT_PUBLIC_
         mcpUrl={mcpServerUrl()}
       >
+        {/* solo se pinta en iOS sin instalar: Safari no ofrece instalación
+            sola y este aviso es la única pista (spec §4) */}
+        <InstallHint />
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-lg font-semibold text-ink">RutIA</h1>
