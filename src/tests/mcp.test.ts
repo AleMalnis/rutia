@@ -517,19 +517,26 @@ describe('catálogo de herramientas MCP', () => {
   })
 
   it('destructiva solo lo que puede perder datos que ya existían', () => {
-    const destructivas = MCP_TOOLS.filter((tool) => tool.annotations.destructiveHint === true)
+    const destructiveToolNames = MCP_TOOLS.filter(
+      (tool) => tool.annotations.destructiveHint === true,
+    )
       .map((tool) => tool.name)
       .sort()
     // set_completed está porque desmarcar (done=false) BORRA una completion
     // que existía: la spec define no-destructiva como solo-aditiva
-    expect(destructivas).toEqual(['clear_day', 'delete_items', 'set_completed', 'update_item'])
+    expect(destructiveToolNames).toEqual([
+      'clear_day',
+      'delete_items',
+      'set_completed',
+      'update_item',
+    ])
   })
 
   it('las anotaciones completas de cada herramienta, con igualdad estricta', () => {
     // igualdad estricta y no matchers parciales: un hint omitido hereda el
     // default del protocolo (destructiveHint true, openWorldHint true), así
     // que una omisión accidental cambia el contrato sin romper ningún parcial
-    const esperadas: Record<string, unknown> = {
+    const expectedAnnotations: Record<string, unknown> = {
       get_routine: { title: 'Consultar la rutina', readOnlyHint: true, openWorldHint: false },
       create_item: {
         title: 'Crear un ítem',
@@ -569,7 +576,7 @@ describe('catálogo de herramientas MCP', () => {
       },
     }
     expect(Object.fromEntries(MCP_TOOLS.map((tool) => [tool.name, tool.annotations]))).toEqual(
-      esperadas,
+      expectedAnnotations,
     )
   })
 
