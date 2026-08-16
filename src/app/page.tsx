@@ -8,26 +8,26 @@ import { mcpServerUrl } from '@/lib/mcp/connect'
 // se abre sin cuenta, y en la paleta neutra de login/registro porque la
 // apariencia personalizable es de la cuenta, no de la puerta.
 
-function rasgos() {
+function features() {
   // El tramo MCP solo se promete si este despliegue lo ofrece: mismo criterio
   // que la sección del diálogo de IA. En una copia autoinstalada sin
   // MCP_RESOURCE_URL la portada no debe vender lo que sus propios ajustes
   // ocultan. Se evalúa en build (la página sigue estática): activar MCP
   // después exige redeploy, igual que el propio cambio de la variable.
-  const conMcp = mcpServerUrl() != null
+  const withMcp = mcpServerUrl() != null
   return [
     {
-      titulo: 'Tu semana, siempre visible',
-      detalle:
+      title: 'Tu semana, siempre visible',
+      detail:
         'Una rutina semanal recurrente: bloques con horario y recordatorios puntuales, y el panel «Hoy» para marcar lo que vas cumpliendo.',
     },
     {
-      titulo: 'Se organiza conversando',
-      detalle: `Un agente de IA crea, mueve y borra por ti. Funciona con tu propia clave de API (Anthropic, OpenAI o Google)${conMcp ? ' o desde tu Claude o ChatGPT conectando RutIA por MCP' : ''}.`,
+      title: 'Se organiza conversando',
+      detail: `Un agente de IA crea, mueve y borra por ti. Funciona con tu propia clave de API (Anthropic, OpenAI o Google)${withMcp ? ' o desde tu Claude o ChatGPT conectando RutIA por MCP' : ''}.`,
     },
     {
-      titulo: 'En tu móvil, sin tiendas',
-      detalle:
+      title: 'En tu móvil, sin tiendas',
+      detail:
         'Instálala desde el navegador y tendrás la app con su icono, a pantalla completa, en Android, iPhone y iPad.',
     },
   ]
@@ -55,16 +55,16 @@ export default function HomePage() {
       </header>
 
       <ul className="grid max-w-3xl gap-4 sm:grid-cols-3">
-        {rasgos().map((rasgo) => (
+        {features().map((feature) => (
           <li
-            key={rasgo.titulo}
+            key={feature.title}
             className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
           >
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              {rasgo.titulo}
+              {feature.title}
             </h2>
             <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              {rasgo.detalle}
+              {feature.detail}
             </p>
           </li>
         ))}
