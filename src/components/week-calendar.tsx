@@ -1,9 +1,12 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
 import type { Category, RoutineItem } from '@/lib/schemas'
 import {
   blockGeometry,
   DAY_NAMES,
+  DAY_END_MIN,
+  DAY_START_MIN,
   GRID_HEIGHT_PX,
   HOUR_PX,
   reminderBottoms,
@@ -21,12 +24,14 @@ const GRID_COLS = 'grid grid-cols-[3.25rem_repeat(7,minmax(6rem,1fr))]'
 type Props = {
   items: RoutineItem[]
   categories: Category[]
+  /** Día actual (0=lunes) según el huso del perfil: hoy se marca (spec §4). */
+  todayWeekday: number
   /** Ítems recién tocados por el agente: se resaltan unos segundos (Must #6). */
   highlightIds?: ReadonlySet<string>
   onItemClick: (item: RoutineItem) => void
 }
 
-export function WeekCalendar({ items, categories, highlightIds, onItemClick }: Props) {
+export function WeekCalendar({ items, categories, todayWeekday, highlightIds, onItemClick }: Props) {
   const colorByCategory = new Map(categories.map((c) => [c.id, c.color]))
   const colorOf = (item: RoutineItem) =>
     (item.categoryId && colorByCategory.get(item.categoryId)) || null
@@ -37,10 +42,14 @@ export function WeekCalendar({ items, categories, highlightIds, onItemClick }: P
       <div className="min-w-max">
         <div className={GRID_COLS}>
           <div />
-          {DAY_NAMES.map((name) => (
+          {DAY_NAMES.map((name, day) => (
             <div
               key={name}
-              className="border-b border-l border-edge px-2 py-2 text-center text-sm font-medium text-ink-2"
+              className={`border-b border-l border-edge px-2 py-2 text-center text-sm ${
+                day === todayWeekday
+                  ? 'font-semibold text-accent'
+                  : 'font-medium text-ink-2'
+              }`}
             >
               {name}
             </div>
@@ -74,7 +83,15 @@ export function WeekCalendar({ items, categories, highlightIds, onItemClick }: P
               <div
                 key={name}
                 className="relative border-l border-edge"
-                style={{ height: GRID_HEIGHT_PX }}
+                style={{
+                  height: GRID_HEIGHT_PX,
+                  // tinte sutil de la columna de hoy: al 4 % no desplaza el
+                  // contraste validado de las marcas de categoría (spec §4)
+                  backgroundColor:
+                    day === todayWeekday
+                      ? 'color-mix(in srgb, var(--accent) 4%, transparent)'
+                      : undefined,
+                }}
               >
                 {/* líneas de hora */}
                 {HOURS.map((hour, index) =>
@@ -110,11 +127,60 @@ export function WeekCalendar({ items, categories, highlightIds, onItemClick }: P
                     onClick={() => onItemClick(item)}
                   />
                 ))}
+
+                {day === todayWeekday && <NowLine weekday={day} />}
               </div>
             )
           })}
         </div>
       </div>
+    </div>
+  )
+}
+
+// El minuto actual como fuente externa: es dato solo-cliente (el servidor
+// prerenderiza sin reloj del navegador) y useSyncExternalStore es el patrón
+// que hidrata sin desajuste y sin setState-en-efecto. El snapshot del
+// servidor (-1) deja la línea sin pintar hasta el primer render en cliente.
+function subscribeToMinute(onChange: () => void) {
+  const id = setInterval(onChange, 60_000)
+  return () => clearInterval(id)
+}
+
+function minuteOfDay(): number {
+  const now = new Date()
+  return now.getHours() * 60 + now.getMinutes()
+}
+
+/**
+ * Línea de «ahora» (spec §4): 2 px de acento con punto, solo en la columna de
+ * hoy, oculta fuera de la franja visible (06:00–24:00). Usa el reloj del
+ * navegador, el mismo que reporta la zona horaria del perfil (today-panel).
+ */
+function NowLine({ weekday }: { weekday: number }) {
+  const minute = useSyncExternalStore(subscribeToMinute, minuteOfDay, () => -1)
+  if (minute < DAY_START_MIN || minute >= DAY_END_MIN) return null
+
+  // La columna de hoy viene del servidor y NO se refresca sola: pasada la
+  // medianoche con la pestaña abierta, seguiría afirmando «ahora» dentro del
+  // día de ayer (la caducidad del dato preexiste: el panel Hoy la sufre igual
+  // y se protege con expectedDate al marcar). Si el día del navegador ya no
+  // coincide, mejor ninguna línea que una línea que miente.
+  const browserWeekday = (new Date().getDay() + 6) % 7 // getDay: 0=domingo → 0=lunes
+  if (browserWeekday !== weekday) return null
+
+  const top = ((minute - DAY_START_MIN) / 60) * HOUR_PX
+  return (
+    <div
+      aria-hidden
+      // z-10: por encima de bloques (z-auto) y chips (mismo z-10, anteriores
+      // en el DOM) pero POR DEBAJO de la columna de horas fija (z-20), que
+      // debe seguir tapándola durante el scroll horizontal en móvil
+      className="pointer-events-none absolute inset-x-0 z-10"
+      style={{ top }}
+    >
+      <div className="h-0.5 bg-accent" />
+      <div className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-accent" />
     </div>
   )
 }
@@ -138,7 +204,9 @@ function BlockCard({
     <button
       type="button"
       onClick={onClick}
-      className={`cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left transition-[opacity,box-shadow] hover:opacity-80 ${
+      // hover por profundización del tinte (15 % → 24 %), no por opacidad:
+      // la opacidad lava el color y deja ver la rejilla a través (spec §4)
+      className={`cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 bg-[color-mix(in_srgb,var(--cat)_15%,transparent)] px-1.5 py-0.5 text-left transition-[background-color,box-shadow] hover:bg-[color-mix(in_srgb,var(--cat)_24%,transparent)] ${
         highlighted ? 'ring-2 ring-accent' : ''
       }`}
       style={{
@@ -146,8 +214,6 @@ function BlockCard({
         top: geometry.top,
         height: geometry.height,
         borderLeftColor: 'var(--cat)',
-        // color de la categoría con ~15 % de opacidad como fondo
-        backgroundColor: 'color-mix(in srgb, var(--cat) 15%, transparent)',
       }}
       title={`${item.title} · ${item.start}–${item.end}${item.detail ? ` · ${item.detail}` : ''}`}
     >
@@ -185,7 +251,7 @@ function ReminderChip({
     <button
       type="button"
       onClick={onClick}
-      className={`cat-mark absolute right-1 z-10 flex h-5 max-w-[75%] -translate-y-full cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-[opacity,box-shadow] hover:opacity-80 ${
+      className={`cat-mark absolute right-1 z-10 flex h-5 max-w-[75%] -translate-y-full cursor-pointer items-center gap-1 rounded-full border bg-card px-1.5 shadow-sm transition-[background-color,box-shadow] hover:bg-[color-mix(in_srgb,var(--cat)_12%,var(--card))] ${
         highlighted ? 'ring-2 ring-accent' : ''
       }`}
       style={{ ...categoryColorStyle(color), top: bottom, borderColor: 'var(--cat)' }}

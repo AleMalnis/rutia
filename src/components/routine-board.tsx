@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { AppearanceDialog } from '@/components/appearance-dialog'
@@ -116,7 +117,7 @@ export function RoutineBoard({
       {/* inert mientras hay un diálogo abierto: sin esto se puede tabular
           hasta las tarjetas del calendario que quedan detrás del velo y
           abrir otro ítem, perdiendo lo que se estaba editando */}
-      <div className="flex flex-1 flex-col gap-4" inert={dialog != null}>
+      <div className="flex flex-1 flex-col gap-5 md:gap-6" inert={dialog != null}>
         {children}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -131,25 +132,28 @@ export function RoutineBoard({
             </button>
             <CategoryLegend categories={categories} />
           </div>
+          {/* Tres niveles de acción (spec §4): Nuevo ítem (acento) >
+              Categorías (contorno) > ajustes (fantasma). La jerarquía se
+              arregla rebajando lo terciario, no amplificando lo primario. */}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => open({ type: 'ia' })}
-              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink"
             >
               IA
             </button>
             <button
               type="button"
               onClick={() => open({ type: 'appearance' })}
-              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink"
             >
               Apariencia
             </button>
             <button
               type="button"
               onClick={() => openItem(null)}
-              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
             >
               Nuevo ítem
             </button>
@@ -159,12 +163,14 @@ export function RoutineBoard({
         {/* «Hoy» va primero en el DOM porque en móvil es la vista principal
             (spec §4): así el orden de lectura y de tabulación coincide con lo
             que se ve. Solo en escritorio pasa a la columna derecha. */}
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_20rem] lg:items-start">
+        <div className="flex flex-col gap-5 md:gap-6 lg:grid lg:grid-cols-[1fr_20rem] lg:items-start">
           <div className="flex flex-col gap-2 lg:order-2">
             {/* Ambos paneles quedan montados y se alternan con hidden: así el
                 chat no pierde la conversación al mirar «Hoy», y el panel
                 «Hoy» sigue reportando la zona horaria del navegador. */}
-            <div className="flex gap-1 rounded-lg border border-edge bg-card p-1">
+            {/* control segmentado hundido, no otra tarjeta: el chrome se
+                diferencia del contenido (spec §4) */}
+            <div className="flex gap-1 rounded-lg bg-edge/40 p-1">
               <PanelTab active={tab === 'chat'} onClick={() => setTab('chat')}>
                 Chat
               </PanelTab>
@@ -194,10 +200,13 @@ export function RoutineBoard({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-edge bg-card lg:order-1">
+          {/* sombra en vez de borde pleno (spec §4): la superficie grande se
+              separa por elevación; el borde queda rebajado como refuerzo */}
+          <div className="overflow-hidden rounded-xl border border-edge/60 bg-card shadow-[var(--shadow-card)] lg:order-1">
             <WeekCalendar
               items={items}
               categories={categories}
+              todayWeekday={todayWeekday}
               highlightIds={highlightIds}
               onItemClick={openItem}
             />
@@ -209,6 +218,18 @@ export function RoutineBoard({
             Tu rutina está vacía. Pulsa «Nuevo ítem» para empezar.
           </p>
         )}
+
+        {/* los legales al pie (spec §4): la cabecera es la posición de máxima
+            jerarquía y esto es lo de menor uso. Dentro del contenedor inert,
+            como el resto, para quedar cubiertos cuando hay un diálogo. */}
+        <footer className="flex gap-4 text-xs text-ink-3">
+          <Link href="/legal/privacidad" className="underline hover:text-ink-2">
+            Privacidad
+          </Link>
+          <Link href="/legal/terminos" className="underline hover:text-ink-2">
+            Términos
+          </Link>
+        </footer>
       </div>
 
       {dialog?.type === 'item' && (

@@ -113,7 +113,7 @@ export function ConsentForm({
           type="button"
           onClick={() => decidir(true)}
           disabled={isPending}
-          className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+          className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 dark:hover:bg-neutral-300 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
         >
           Autorizar
         </button>

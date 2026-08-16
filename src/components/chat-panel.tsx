@@ -110,7 +110,7 @@ export function ChatPanel({
   return (
     <section
       aria-label="Chat con RutIA"
-      className="flex flex-col gap-2 rounded-xl border border-edge bg-card p-3"
+      className="flex flex-col gap-2 rounded-xl border border-edge/60 bg-card p-4 shadow-[var(--shadow-card)]"
     >
       {/* role=log: los mensajes nuevos se anuncian sin robar el foco */}
       <div
@@ -151,7 +151,7 @@ export function ChatPanel({
               <button
                 type="button"
                 onClick={() => onOpenSettings('key')}
-                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
               >
                 Configurar clave
               </button>
@@ -203,7 +203,7 @@ export function ChatPanel({
         <button
           type="submit"
           disabled={pending || !llmConfigured || draft.trim().length === 0}
-          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85 disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))] disabled:opacity-50"
         >
           Enviar
         </button>

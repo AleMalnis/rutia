@@ -36,7 +36,9 @@ export type Appearance = {
 
 export const DEFAULT_APPEARANCE: Appearance = {
   mode: 'auto',
-  theme: 'zinc',
+  // pizarra y no zinc (spec §4): el acento de zinc es la propia tinta, y una
+  // primera impresión 100 % monocroma lee como pantalla sin diseñar
+  theme: 'pizarra',
   font: 'system',
 }
 

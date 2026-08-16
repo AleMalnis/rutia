@@ -48,6 +48,13 @@
   --color-ink-3: var(--ink-3);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+
+  /* Elevación de superficies (spec §4, afinado visual): dos capas suaves
+     basadas en negro — contacto + ambiente. En modo oscuro es invisible de
+     forma natural (negro sobre casi negro), que es lo correcto: allí la
+     elevación ya la da la tarjeta más clara que la página, y una sombra
+     teñida con la tinta sería un halo claro. */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05), 0 4px 12px -4px rgb(0 0 0 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -241,7 +248,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* La fuente de la app también en las páginas sin [data-font] (portada,
+     login, legal): el Arial que traía la plantilla era el delator nº 1 del
+     look genérico. Dentro de /app, [data-font] sigue mandando. */
+  font-family: var(--font-app);
 }
 
 /* Marcas de color de categoría: cada elemento define inline sus variantes
