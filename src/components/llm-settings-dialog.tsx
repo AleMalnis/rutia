@@ -25,6 +25,7 @@ const OPTION_CLASS =
 export function LlmSettingsDialog({
   status,
   mcpUrl,
+  initialTab,
   onStatusChange,
   onClose,
 }: {
@@ -35,6 +36,8 @@ export function LlmSettingsDialog({
    * aquí daría null siempre.
    */
   mcpUrl: string | null
+  /** Pestaña de apertura: el aviso del chat abre directo en «Conectores». */
+  initialTab?: 'key' | 'connectors'
   onStatusChange: (status: LlmKeyStatusView | null) => void
   onClose: () => void
 }) {
@@ -45,8 +48,12 @@ export function LlmSettingsDialog({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'ok' | 'fail'>('idle')
   // Las dos formas de usar el asistente, al mismo nivel: la clave propia o un
-  // conector externo. Sin modo MCP desplegado no hay pestañas, solo la clave.
-  const [tab, setTab] = useState<'key' | 'connectors'>('key')
+  // conector externo. Sin modo MCP desplegado no hay pestañas, solo la clave —
+  // y por eso 'connectors' como apertura solo se honra si mcpUrl existe: sin
+  // esa guarda, un initialTab imposible dejaría el diálogo en blanco.
+  const [tab, setTab] = useState<'key' | 'connectors'>(
+    initialTab === 'connectors' && mcpUrl != null ? 'connectors' : 'key',
+  )
   const [isPending, startTransition] = useTransition()
   const backdropMouseDown = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)

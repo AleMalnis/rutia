@@ -21,7 +21,7 @@ type Dialog =
   | { type: 'item'; item: RoutineItem | null }
   | { type: 'categories' }
   | { type: 'appearance' }
-  | { type: 'ia' }
+  | { type: 'ia'; tab?: 'key' | 'connectors' }
   | null
 
 export function RoutineBoard({
@@ -179,7 +179,7 @@ export function RoutineBoard({
                 routineEmpty={items.length === 0}
                 llmConfigured={llmStatus != null}
                 mcpAvailable={mcpUrl != null}
-                onOpenSettings={() => open({ type: 'ia' })}
+                onOpenSettings={(tab) => open({ type: 'ia', tab })}
                 onMutated={handleAgentMutation}
               />
             </div>
@@ -234,6 +234,7 @@ export function RoutineBoard({
         <LlmSettingsDialog
           status={llmStatus}
           mcpUrl={mcpUrl}
+          initialTab={dialog.tab}
           onStatusChange={setLlmStatus}
           onClose={close}
         />

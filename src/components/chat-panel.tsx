@@ -33,7 +33,8 @@ export function ChatPanel({
   llmConfigured: boolean
   /** Si este despliegue ofrece el modo MCP: el aviso sin clave lo menciona. */
   mcpAvailable: boolean
-  onOpenSettings: () => void
+  /** Abre Ajustes → IA, opcionalmente directo en una pestaña concreta. */
+  onOpenSettings: (tab?: 'key' | 'connectors') => void
   onMutated: (affectedItemIds: string[]) => void
 }) {
   const [messages, setMessages] = useState<ChatUiMessage[]>(initialMessages)
@@ -141,17 +142,29 @@ export function ChatPanel({
             {mcpAvailable && (
               <p className="mt-1.5">
                 Si prefieres no pegar ninguna clave, también puedes gestionar tu rutina desde
-                Claude o ChatGPT conectando RutIA: está en la pestaña «Conectores» de estos
-                mismos ajustes.
+                Claude o ChatGPT conectando RutIA.
               </p>
             )}
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="mt-2 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
-            >
-              Configurar IA
-            </button>
+            {/* cada camino lleva a SU pestaña: prometer «Conectores» y abrir
+                la de la clave obligaría al usuario a buscarla él */}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenSettings('key')}
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+              >
+                Configurar clave
+              </button>
+              {mcpAvailable && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSettings('connectors')}
+                  className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-ink hover:bg-edge/40"
+                >
+                  Ver conectores
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
