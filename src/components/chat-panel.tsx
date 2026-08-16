@@ -23,6 +23,7 @@ export function ChatPanel({
   initialMessages,
   routineEmpty,
   llmConfigured,
+  mcpAvailable,
   onOpenSettings,
   onMutated,
 }: {
@@ -30,7 +31,10 @@ export function ChatPanel({
   routineEmpty: boolean
   /** BYOK (spec §6.4): sin clave propia configurada el chat no funciona. */
   llmConfigured: boolean
-  onOpenSettings: () => void
+  /** Si este despliegue ofrece el modo MCP: el aviso sin clave lo menciona. */
+  mcpAvailable: boolean
+  /** Abre Ajustes → IA, opcionalmente directo en una pestaña concreta. */
+  onOpenSettings: (tab?: 'key' | 'connectors') => void
   onMutated: (affectedItemIds: string[]) => void
 }) {
   const [messages, setMessages] = useState<ChatUiMessage[]>(initialMessages)
@@ -126,20 +130,41 @@ export function ChatPanel({
           </p>
         )}
 
-        {/* BYOK: sin clave configurada, el chat lo explica y lleva a Ajustes */}
+        {/* BYOK: sin clave configurada, el chat explica los dos caminos que
+            da la spec §6.4 —pegar una clave propia en Ajustes → IA o el modo
+            MCP— y lleva a Ajustes. El de MCP solo si el despliegue lo ofrece. */}
         {!llmConfigured && (
           <div className="self-start rounded-lg border border-edge bg-page px-2.5 py-2 text-sm text-ink">
             <p>
-              Para chatear necesito tu propia clave de API (Anthropic, OpenAI o Google): la
+              Para chatear aquí necesito tu propia clave de API (Anthropic, OpenAI o Google): la
               inferencia corre por tu cuenta, de pago por uso.
             </p>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="mt-2 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
-            >
-              Configurar IA
-            </button>
+            {mcpAvailable && (
+              <p className="mt-1.5">
+                Si prefieres no pegar ninguna clave, también puedes gestionar tu rutina desde
+                Claude o ChatGPT conectando RutIA.
+              </p>
+            )}
+            {/* cada camino lleva a SU pestaña: prometer «Conectores» y abrir
+                la de la clave obligaría al usuario a buscarla él */}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenSettings('key')}
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+              >
+                Configurar clave
+              </button>
+              {mcpAvailable && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSettings('connectors')}
+                  className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-ink hover:bg-edge/40"
+                >
+                  Ver conectores
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
