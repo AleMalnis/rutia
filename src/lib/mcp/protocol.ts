@@ -61,6 +61,13 @@ export type ToolRunner = (
  * como destructivas haría que hasta una lectura interrumpiese al usuario.
  */
 export type ToolAnnotations = {
+  /**
+   * Nombre legible DUPLICADO aquí a propósito: la revisión 2025-03-26 no
+   * tiene `title` a nivel de herramienta (llegó en 2025-06-18) y busca el
+   * nombre en `annotations.title`. Las revisiones modernas no se confunden:
+   * su precedencia documentada es title → annotations.title → name.
+   */
+  title?: string
   /** No modifica nada. */
   readOnlyHint?: boolean
   /** Puede sobrescribir o eliminar datos que ya existían. */
