@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { deleteLlmKey, saveLlmKey } from '@/app/app/actions'
+import { PanelTab } from '@/components/panel-tab'
 import {
   LLM_PROVIDERS,
   providerLabel,
@@ -43,6 +44,9 @@ export function LlmSettingsDialog({
   const [info, setInfo] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'ok' | 'fail'>('idle')
+  // Las dos formas de usar el asistente, al mismo nivel: la clave propia o un
+  // conector externo. Sin modo MCP desplegado no hay pestañas, solo la clave.
+  const [tab, setTab] = useState<'key' | 'connectors'>('key')
   const [isPending, startTransition] = useTransition()
   const backdropMouseDown = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -93,6 +97,14 @@ export function LlmSettingsDialog({
       // camino manual: el campo es seleccionable y se autoselecciona al foco
       setCopyState('fail')
     }
+  }
+
+  function selectTab(next: 'key' | 'connectors') {
+    setTab(next)
+    // cambiar de vista rompe el contexto de la confirmación en dos pasos:
+    // volver minutos después y encontrar «¿Seguro? Borrar» armado convertiría
+    // el segundo clic consciente en uno accidental
+    setConfirmDelete(false)
   }
 
   function remove() {
@@ -153,106 +165,127 @@ export function LlmSettingsDialog({
           </button>
         </div>
 
-        <h3 className="mb-1 text-sm font-semibold text-ink">Tu clave de API</h3>
-        <p className="mb-3 text-sm text-ink-2">
-          El chat de esta pantalla funciona con tu propia clave de API (pago por uso contra tu
-          cuenta del proveedor, no tu suscripción de ChatGPT Plus o Claude Pro). Se guarda cifrada
-          y no se vuelve a mostrar.
-        </p>
-
-        {status && (
-          <p className="mb-3 rounded-md border border-edge bg-page px-2.5 py-1.5 text-sm text-ink">
-            Configurada: <strong>{providerLabel(status.provider)}</strong>
-            <span className="tabular-nums text-ink-2"> · ····{status.last4}</span>
-          </p>
-        )}
-
-        {error && (
-          <p role="alert" className="mb-2 text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        )}
-        {info && (
-          <p role="status" className="mb-2 text-sm text-ink-2">
-            {info}
-          </p>
-        )}
-
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            save()
-          }}
-          className="space-y-4"
-        >
-          <fieldset className="space-y-1.5">
-            <legend className="text-sm text-ink-2">Proveedor</legend>
-            <div className="flex flex-wrap gap-2">
-              {LLM_PROVIDERS.map((entry) => (
-                <label key={entry.id} className={OPTION_CLASS}>
-                  <input
-                    type="radio"
-                    name="provider"
-                    value={entry.id}
-                    checked={provider === entry.id}
-                    onChange={() => setProvider(entry.id)}
-                    disabled={isPending}
-                    className="sr-only"
-                  />
-                  {entry.label}
-                </label>
-              ))}
-            </div>
-            {selected && <p className="text-xs text-ink-3">{selected.keyHint}</p>}
-          </fieldset>
-
-          <div className="space-y-1.5">
-            <label htmlFor="llm-api-key" className="block text-sm text-ink-2">
+        {/* sin MCP_RESOURCE_URL no hay pestañas: contarle a un usuario final
+            que existe algo que su despliegue no ofrece solo estorba */}
+        {mcpUrl != null && (
+          <div className="mb-4 flex gap-1 rounded-lg border border-edge bg-page p-1">
+            {/* bloqueadas durante el guardado, como Escape y «Cerrar»: cambiar
+                de vista desmontaría el aviso de error y se perdería sin verse */}
+            <PanelTab active={tab === 'key'} disabled={isPending} onClick={() => selectTab('key')}>
               Clave de API
-            </label>
-            {/* type=password: la clave no debe quedar a la vista al pegarla */}
-            <input
-              id="llm-api-key"
-              type="password"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder={status ? 'Pega una clave nueva para reemplazarla' : 'sk-…'}
-              autoComplete="off"
+            </PanelTab>
+            <PanelTab
+              active={tab === 'connectors'}
               disabled={isPending}
-              className="w-full rounded-md border border-edge bg-page px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-3 focus:outline-2 focus:outline-accent disabled:opacity-50"
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="submit"
-              disabled={isPending || apiKey.trim().length === 0}
-              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85 disabled:opacity-50"
+              onClick={() => selectTab('connectors')}
             >
-              {status ? 'Reemplazar clave' : 'Guardar clave'}
-            </button>
+              Conectores
+            </PanelTab>
+          </div>
+        )}
+
+        {(mcpUrl == null || tab === 'key') && (
+          <>
+            <h3 className="mb-1 text-sm font-semibold text-ink">Tu clave de API</h3>
+            <p className="mb-3 text-sm text-ink-2">
+              El chat de esta pantalla funciona con tu propia clave de API (pago por uso contra tu
+              cuenta del proveedor, no tu suscripción de ChatGPT Plus o Claude Pro). Se guarda cifrada
+              y no se vuelve a mostrar.
+            </p>
 
             {status && (
-              <button
-                type="button"
-                onClick={remove}
-                disabled={isPending}
-                className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-edge/40 disabled:opacity-50 dark:text-red-400"
-              >
-                {confirmDelete ? '¿Seguro? Borrar' : 'Borrar clave'}
-              </button>
+              <p className="mb-3 rounded-md border border-edge bg-page px-2.5 py-1.5 text-sm text-ink">
+                Configurada: <strong>{providerLabel(status.provider)}</strong>
+                <span className="tabular-nums text-ink-2"> · ····{status.last4}</span>
+              </p>
             )}
-          </div>
 
-          {isPending && <p className="text-xs text-ink-3">Guardando…</p>}
-        </form>
+            {error && (
+              <p role="alert" className="mb-2 text-sm text-red-600 dark:text-red-400">
+                {error}
+              </p>
+            )}
+            {info && (
+              <p role="status" className="mb-2 text-sm text-ink-2">
+                {info}
+              </p>
+            )}
 
-        {/* Sin MCP_RESOURCE_URL el modo MCP no está desplegado, así que la
-            sección no se pinta: contarle a un usuario final que existe algo
-            que no puede usar solo estorba. La guía de activación va en el
-            README, que es para quien despliega. */}
-        {mcpUrl != null && (
-          <section className="mt-5 border-t border-edge pt-4">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                save()
+              }}
+              className="space-y-4"
+            >
+              <fieldset className="space-y-1.5">
+                <legend className="text-sm text-ink-2">Proveedor</legend>
+                <div className="flex flex-wrap gap-2">
+                  {LLM_PROVIDERS.map((entry) => (
+                    <label key={entry.id} className={OPTION_CLASS}>
+                      <input
+                        type="radio"
+                        name="provider"
+                        value={entry.id}
+                        checked={provider === entry.id}
+                        onChange={() => setProvider(entry.id)}
+                        disabled={isPending}
+                        className="sr-only"
+                      />
+                      {entry.label}
+                    </label>
+                  ))}
+                </div>
+                {selected && <p className="text-xs text-ink-3">{selected.keyHint}</p>}
+              </fieldset>
+
+              <div className="space-y-1.5">
+                <label htmlFor="llm-api-key" className="block text-sm text-ink-2">
+                  Clave de API
+                </label>
+                {/* type=password: la clave no debe quedar a la vista al pegarla */}
+                <input
+                  id="llm-api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                  placeholder={status ? 'Pega una clave nueva para reemplazarla' : 'sk-…'}
+                  autoComplete="off"
+                  disabled={isPending}
+                  className="w-full rounded-md border border-edge bg-page px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-3 focus:outline-2 focus:outline-accent disabled:opacity-50"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="submit"
+                  disabled={isPending || apiKey.trim().length === 0}
+                  className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85 disabled:opacity-50"
+                >
+                  {status ? 'Reemplazar clave' : 'Guardar clave'}
+                </button>
+
+                {status && (
+                  <button
+                    type="button"
+                    onClick={remove}
+                    disabled={isPending}
+                    className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-edge/40 disabled:opacity-50 dark:text-red-400"
+                  >
+                    {confirmDelete ? '¿Seguro? Borrar' : 'Borrar clave'}
+                  </button>
+                )}
+              </div>
+
+              {isPending && <p className="text-xs text-ink-3">Guardando…</p>}
+            </form>
+          </>
+        )}
+
+        {/* La guía de activación del modo MCP va en el README, que es para
+            quien despliega; aquí solo se enseña lo que este despliegue ofrece. */}
+        {mcpUrl != null && tab === 'connectors' && (
+          <section>
             <h3 className="text-sm font-semibold text-ink">Conectar otra aplicación (MCP)</h3>
             <p className="mt-1 text-sm text-ink-2">
               La otra forma de usar el asistente, sin pegar ninguna clave aquí: conectas RutIA a

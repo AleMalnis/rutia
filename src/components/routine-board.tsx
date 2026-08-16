@@ -8,6 +8,7 @@ import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ChatPanel, type ChatUiMessage } from '@/components/chat-panel'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { LlmSettingsDialog } from '@/components/llm-settings-dialog'
+import { PanelTab } from '@/components/panel-tab'
 import { TodayPanel, type TodayEntry } from '@/components/today-panel'
 import { WeekCalendar } from '@/components/week-calendar'
 import type { Appearance } from '@/lib/appearance'
@@ -177,6 +178,7 @@ export function RoutineBoard({
                 initialMessages={chatMessages}
                 routineEmpty={items.length === 0}
                 llmConfigured={llmStatus != null}
+                mcpAvailable={mcpUrl != null}
                 onOpenSettings={() => open({ type: 'ia' })}
                 onMutated={handleAgentMutation}
               />
@@ -240,28 +242,5 @@ export function RoutineBoard({
   )
 }
 
-// Alternador simple con aria-pressed: dos vistas del mismo panel lateral. No
-// se usa el patrón ARIA de tabs porque exige navegación con flechas que aquí
-// no aporta nada con solo dos opciones.
-function PanelTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`flex-1 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-        active ? 'bg-accent text-accent-ink' : 'text-ink-2 hover:bg-edge/40'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
+// El alternador PanelTab vive ahora en panel-tab.tsx: lo comparte este panel
+// (Chat/Hoy) con el diálogo de IA (Clave de API/Conectores).

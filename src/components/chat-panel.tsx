@@ -23,6 +23,7 @@ export function ChatPanel({
   initialMessages,
   routineEmpty,
   llmConfigured,
+  mcpAvailable,
   onOpenSettings,
   onMutated,
 }: {
@@ -30,6 +31,8 @@ export function ChatPanel({
   routineEmpty: boolean
   /** BYOK (spec §6.4): sin clave propia configurada el chat no funciona. */
   llmConfigured: boolean
+  /** Si este despliegue ofrece el modo MCP: el aviso sin clave lo menciona. */
+  mcpAvailable: boolean
   onOpenSettings: () => void
   onMutated: (affectedItemIds: string[]) => void
 }) {
@@ -126,13 +129,22 @@ export function ChatPanel({
           </p>
         )}
 
-        {/* BYOK: sin clave configurada, el chat lo explica y lleva a Ajustes */}
+        {/* BYOK: sin clave configurada, el chat explica los dos caminos que
+            da la spec §6.4 —pegar una clave propia en Ajustes → IA o el modo
+            MCP— y lleva a Ajustes. El de MCP solo si el despliegue lo ofrece. */}
         {!llmConfigured && (
           <div className="self-start rounded-lg border border-edge bg-page px-2.5 py-2 text-sm text-ink">
             <p>
-              Para chatear necesito tu propia clave de API (Anthropic, OpenAI o Google): la
+              Para chatear aquí necesito tu propia clave de API (Anthropic, OpenAI o Google): la
               inferencia corre por tu cuenta, de pago por uso.
             </p>
+            {mcpAvailable && (
+              <p className="mt-1.5">
+                Si prefieres no pegar ninguna clave, también puedes gestionar tu rutina desde
+                Claude o ChatGPT conectando RutIA: está en la pestaña «Conectores» de estos
+                mismos ajustes.
+              </p>
+            )}
             <button
               type="button"
               onClick={onOpenSettings}
