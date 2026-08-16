@@ -143,8 +143,20 @@ export function WeekCalendar({ items, categories, todayWeekday, highlightIds, on
 // que hidrata sin desajuste y sin setState-en-efecto. El snapshot del
 // servidor (-1) deja la línea sin pintar hasta el primer render en cliente.
 function subscribeToMinute(onChange: () => void) {
-  const id = setInterval(onChange, 60_000)
-  return () => clearInterval(id)
+  // Primer aviso en el cambio de minuto REAL, no 60 s después de montar:
+  // montando a las 10:00:59, un intervalo pelado no avisaría hasta casi las
+  // 10:02. Se espera lo que falta del minuto en curso y a partir de ahí sí
+  // basta un intervalo.
+  let intervalId: number | undefined
+  const timeoutId = window.setTimeout(() => {
+    onChange()
+    intervalId = window.setInterval(onChange, 60_000)
+  }, 60_000 - (Date.now() % 60_000))
+
+  return () => {
+    window.clearTimeout(timeoutId)
+    if (intervalId !== undefined) window.clearInterval(intervalId)
+  }
 }
 
 function minuteOfDay(): number {
