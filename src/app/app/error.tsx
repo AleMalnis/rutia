@@ -3,7 +3,18 @@
 // Red de seguridad de /app: si algo se escapa del manejo de errores de las
 // server actions, el usuario ve esto y puede reintentar en vez de quedarse
 // con la pantalla de error genérica de Next.
-export default function AppError({ reset }: { error: Error; reset: () => void }) {
+//
+// El botón usa unstable_retry(), NO reset(): reset solo re-renderiza el lado
+// cliente sin volver a pedir los datos, así que ante un fallo del servidor
+// (el caso típico aquí: una consulta a Supabase que falló) no hacía nada
+// visible y el botón parecía muerto. unstable_retry re-descarga y re-renderiza
+// el segmento, que es lo que un reintento significa de verdad.
+export default function AppError({
+  unstable_retry,
+}: {
+  error: Error
+  unstable_retry: () => void
+}) {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-3 bg-zinc-50 px-4 text-center dark:bg-black">
       <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
@@ -14,7 +25,7 @@ export default function AppError({ reset }: { error: Error; reset: () => void })
       </p>
       <button
         type="button"
-        onClick={reset}
+        onClick={() => unstable_retry()}
         className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
         Reintentar
