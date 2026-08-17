@@ -292,7 +292,7 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:opacity-85 disabled:opacity-50"
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))] disabled:opacity-50"
               >
                 {isSubmitting ? 'Guardando…' : 'Guardar'}
               </button>

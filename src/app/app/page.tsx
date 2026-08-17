@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { InstallHint } from '@/components/install-hint'
 import { RoutineBoard } from '@/components/routine-board'
@@ -76,7 +75,7 @@ export default async function AppPage() {
       data-theme={appearance.theme}
       data-mode={appearance.mode}
       data-font={appearance.font}
-      className="flex flex-1 flex-col gap-4 bg-page p-4 text-ink"
+      className="flex flex-1 flex-col gap-4 bg-page p-4 text-ink md:p-6"
     >
       {/* la cabecera va dentro del tablero para quedar cubierta por su
           `inert` mientras el diálogo de edición está abierto */}
@@ -103,21 +102,14 @@ export default async function AppPage() {
           <div>
             <h1 className="text-lg font-semibold text-ink">RutIA</h1>
             <p className="text-sm text-ink-3">{email}</p>
-            {/* dentro del tablero, como el resto de la cabecera: así el `inert`
-                del diálogo de edición también cubre estos enlaces */}
-            <p className="mt-0.5 space-x-3 text-xs text-ink-3">
-              <Link href="/legal/privacidad" className="underline">
-                Privacidad
-              </Link>
-              <Link href="/legal/terminos" className="underline">
-                Términos
-              </Link>
-            </p>
+            {/* los enlaces legales viven ahora en el pie del tablero (spec
+                §4): la cabecera es la posición de máxima jerarquía */}
           </div>
           <form action={logout}>
+            {/* fantasma: acción terciaria, no debe pesar como las de contenido */}
             <button
               type="submit"
-              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink"
             >
               Cerrar sesión
             </button>

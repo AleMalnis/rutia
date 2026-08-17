@@ -71,7 +71,7 @@ export function TodayPanel({
   return (
     <section
       aria-labelledby="titulo-hoy"
-      className="flex flex-col gap-2 rounded-xl border border-edge bg-card p-3"
+      className="flex flex-col gap-2 rounded-xl border border-edge/60 bg-card p-4 shadow-[var(--shadow-card)]"
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 id="titulo-hoy" className="text-sm font-semibold text-ink">
@@ -135,7 +135,7 @@ export function TodayPanel({
                   type="button"
                   onClick={() => onItemClick(entry.item)}
                   title={texto}
-                  className={`min-w-0 flex-1 truncate py-1.5 text-left text-sm transition-opacity hover:opacity-70 ${
+                  className={`min-w-0 flex-1 truncate py-1.5 text-left text-sm transition-colors hover:text-ink-2 ${
                     entry.done
                       ? 'text-ink-3 line-through'
                       : 'text-ink'

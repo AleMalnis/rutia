@@ -175,7 +175,7 @@ export function LlmSettingsDialog({
         {/* sin MCP_RESOURCE_URL no hay pestañas: contarle a un usuario final
             que existe algo que su despliegue no ofrece solo estorba */}
         {mcpUrl != null && (
-          <div className="mb-4 flex gap-1 rounded-lg border border-edge bg-page p-1">
+          <div className="mb-4 flex gap-1 rounded-lg bg-edge/40 p-1">
             {/* bloqueadas durante el guardado, como Escape y «Cerrar»: cambiar
                 de vista desmontaría el aviso de error y se perdería sin verse */}
             <PanelTab active={tab === 'key'} disabled={isPending} onClick={() => selectTab('key')}>
@@ -267,7 +267,7 @@ export function LlmSettingsDialog({
                 <button
                   type="submit"
                   disabled={isPending || apiKey.trim().length === 0}
-                  className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85 disabled:opacity-50"
+                  className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))] disabled:opacity-50"
                 >
                   {status ? 'Reemplazar clave' : 'Guardar clave'}
                 </button>
@@ -304,7 +304,7 @@ export function LlmSettingsDialog({
               href={claudeConnectUrl(mcpUrl)}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-block rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:opacity-85"
+              className="mt-3 inline-block rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
             >
               Conectar con Claude
             </a>

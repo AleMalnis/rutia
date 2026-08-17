@@ -222,7 +222,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
             type="button"
             onClick={() => setDraft({ id: null, name: '', color: CATEGORY_COLORS[0].light })}
             disabled={isPending}
-            className="mt-3 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:opacity-85 disabled:opacity-50"
+            className="mt-3 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))] disabled:opacity-50"
           >
             Nueva categoría
           </button>
@@ -296,7 +296,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:opacity-85 disabled:opacity-50"
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))] disabled:opacity-50"
               >
                 {isPending ? 'Guardando…' : 'Guardar'}
               </button>
