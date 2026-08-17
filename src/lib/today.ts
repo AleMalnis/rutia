@@ -1,3 +1,4 @@
+import { DAY_NAMES } from '@/lib/calendar'
 import type { RoutineItem } from '@/lib/schemas'
 
 // Qué día es «hoy» y qué toca en él. La fecha y el día de la semana se
@@ -59,6 +60,44 @@ export function todayInTimezone(now: Date, timeZone: string): Today {
     date: `${part('year')}-${part('month')}-${part('day')}`,
     weekday: WEEKDAY_INDEX[part('weekday')] ?? 0,
   }
+}
+
+const MONTH_NAMES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+]
+
+/**
+ * La fecha de hoy en palabras: «Domingo, 16 de agosto» (spec §4, la fecha es
+ * la protagonista de la cabecera).
+ *
+ * Se compone de las PARTES de la cadena ISO y del weekday que ya vienen
+ * calculados en el huso del usuario. Deliberadamente no se construye un `Date`
+ * intermedio: `new Date('2026-08-16')` se interpreta como medianoche UTC y al
+ * formatearlo en el huso local puede retroceder al día anterior — el mismo
+ * error de huso que este módulo existe para evitar.
+ */
+export function formatTodayLabel(date: string, weekday: number): string {
+  const match = /^\d{4}-(\d{2})-(\d{2})$/.exec(date)
+  const dayName = DAY_NAMES[weekday]
+  // sin fecha reconocible o sin día válido, el nombre del día ya informa; una
+  // cabecera a medias es mejor que una fecha inventada
+  if (match == null || dayName == null) return dayName ?? ''
+
+  const monthName = MONTH_NAMES[Number(match[1]) - 1]
+  if (monthName == null) return dayName
+
+  return `${dayName}, ${Number(match[2])} de ${monthName}`
 }
 
 // Los ítems que tocan un día concreto, en orden de reloj. Un ítem multi-día

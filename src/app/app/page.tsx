@@ -3,6 +3,7 @@ import { InstallHint } from '@/components/install-hint'
 import { RoutineBoard } from '@/components/routine-board'
 import { SecretConfigError } from '@/lib/crypto'
 import { mcpServerUrl } from '@/lib/mcp/connect'
+import { formatTodayLabel } from '@/lib/today'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
@@ -100,10 +101,15 @@ export default async function AppPage() {
         <InstallHint />
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-lg font-semibold text-ink">RutIA</h1>
-            <p className="text-sm text-ink-3">{email}</p>
-            {/* los enlaces legales viven ahora en el pie del tablero (spec
-                §4): la cabecera es la posición de máxima jerarquía */}
+            {/* La fecha manda y la marca acompaña (spec §4): quien abre la app
+                viene a ver su día, no a leer el nombre del producto. Los
+                enlaces legales bajaron al pie por el mismo motivo. */}
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-3">
+              RutIA · {email}
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+              {formatTodayLabel(today.date, today.weekday)}
+            </h1>
           </div>
           <form action={logout}>
             {/* fantasma: acción terciaria, no debe pesar como las de contenido */}

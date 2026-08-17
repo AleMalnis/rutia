@@ -49,6 +49,12 @@ export function TodayPanel({
 
   const colorByCategory = new Map(categories.map((c) => [c.id, c.color]))
   const hechos = optimistic.filter((entry) => entry.done).length
+  // El primer pendiente de la lista (que ya viene en orden de reloj) es lo que
+  // el usuario está buscando al abrir el panel, así que se destaca. Se elige
+  // por posición y no por la hora del navegador a propósito: un cálculo con
+  // reloj de cliente exigiría hidratar sin desajuste, y lo que quedó atrás sin
+  // marcar sigue siendo lo primero que hay que atender.
+  const primerPendienteId = optimistic.find((entry) => !entry.done)?.item.id ?? null
 
   function toggle(entry: TodayEntry) {
     const next = !entry.done
@@ -90,6 +96,19 @@ export function TodayPanel({
         )}
       </div>
 
+      {/* El avance en una barra: la proporción se ve de un vistazo, que es lo
+          que el número solo no da (spec §4). Decorativa a propósito —
+          aria-hidden— porque el status de arriba ya lo anuncia y dos regiones
+          diciendo lo mismo se leerían dos veces. */}
+      {optimistic.length > 0 && (
+        <div aria-hidden className="h-1 overflow-hidden rounded-full bg-edge">
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-300"
+            style={{ width: `${(hechos / optimistic.length) * 100}%` }}
+          />
+        </div>
+      )}
+
       {error && (
         <p role="alert" className="text-xs text-red-600 dark:text-red-400">
           {error}
@@ -106,8 +125,16 @@ export function TodayPanel({
             const color =
               (entry.item.categoryId && colorByCategory.get(entry.item.categoryId)) || null
             const texto = `${entry.item.title}${entry.item.detail ? ` · ${entry.item.detail}` : ''}`
+            const esPrimerPendiente = entry.item.id === primerPendienteId
             return (
-              <li key={entry.item.id} className="flex items-center gap-2">
+              <li
+                key={entry.item.id}
+                // barra lateral de acento en lo primero que queda por hacer:
+                // el borde transparente en el resto evita que la lista salte
+                className={`flex items-center gap-2 border-l-2 pl-1.5 ${
+                  esPrimerPendiente ? 'border-accent' : 'border-transparent'
+                }`}
+              >
                 {/* el label amplía el área táctil de la casilla, que sola
                     mediría 16 px y con dos tomas seguidas se pulsa la de al lado */}
                 <label className="-m-1 flex cursor-pointer items-center p-1">
@@ -138,7 +165,9 @@ export function TodayPanel({
                   className={`min-w-0 flex-1 truncate py-1.5 text-left text-sm transition-colors hover:text-ink-2 ${
                     entry.done
                       ? 'text-ink-3 line-through'
-                      : 'text-ink'
+                      : esPrimerPendiente
+                        ? 'font-medium text-ink'
+                        : 'text-ink'
                   }`}
                 >
                   {texto}
