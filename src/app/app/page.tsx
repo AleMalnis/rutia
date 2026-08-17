@@ -95,15 +95,10 @@ export default async function AppPage() {
         llmStatus={llmStatus}
         // se resuelve en el servidor: MCP_RESOURCE_URL no es NEXT_PUBLIC_
         mcpUrl={mcpServerUrl()}
-      >
-        {/* solo se pinta en iOS sin instalar: Safari no ofrece instalación
-            sola y este aviso es la única pista (spec §4) */}
-        <InstallHint />
-        <header className="flex flex-wrap items-center justify-between gap-2">
+        identity={
           <div>
             {/* La fecha manda y la marca acompaña (spec §4): quien abre la app
-                viene a ver su día, no a leer el nombre del producto. Los
-                enlaces legales bajaron al pie por el mismo motivo. */}
+                viene a ver su día, no a leer el nombre del producto. */}
             <p className="text-xs font-medium uppercase tracking-wide text-ink-3">
               RutIA · {email}
             </p>
@@ -111,16 +106,22 @@ export default async function AppPage() {
               {formatTodayLabel(today.date, today.weekday)}
             </h1>
           </div>
+        }
+        sessionAction={
           <form action={logout}>
             {/* fantasma: acción terciaria, no debe pesar como las de contenido */}
             <button
               type="submit"
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink active:translate-y-px"
             >
               Cerrar sesión
             </button>
           </form>
-        </header>
+        }
+      >
+        {/* solo se pinta en iOS sin instalar: Safari no ofrece instalación
+            sola y este aviso es la única pista (spec §4) */}
+        <InstallHint />
       </RoutineBoard>
     </main>
   )

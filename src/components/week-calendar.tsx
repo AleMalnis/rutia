@@ -220,7 +220,7 @@ function BlockCard({
       onClick={onClick}
       // hover por profundización del tinte (15 % → 24 %), no por opacidad:
       // la opacidad lava el color y deja ver la rejilla a través (spec §4)
-      className={`cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 bg-[color-mix(in_srgb,var(--cat)_15%,transparent)] px-1.5 py-0.5 text-left transition-[background-color,box-shadow] hover:bg-[color-mix(in_srgb,var(--cat)_24%,transparent)] ${
+      className={`cat-mark absolute inset-x-1 cursor-pointer overflow-hidden rounded-md border-l-4 bg-[color-mix(in_srgb,var(--cat)_15%,transparent)] px-1.5 py-0.5 text-left transition-[background-color,box-shadow] hover:bg-[color-mix(in_srgb,var(--cat)_24%,transparent)] hover:shadow-sm ${
         highlighted ? 'ring-2 ring-accent' : ''
       }`}
       style={{
