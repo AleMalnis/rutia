@@ -344,9 +344,24 @@ describe('formatTodayLabel', () => {
   })
 
   it('con una fecha ilegible se queda en el nombre del día, sin inventar', () => {
-    for (const malo of ['', 'ayer', '2026-8-1', '2026-13-01x']) {
-      expect(formatTodayLabel(malo, 1)).toBe('Martes')
+    for (const invalidDate of ['', 'ayer', '2026-8-1', '2026-13-01x']) {
+      expect(formatTodayLabel(invalidDate, 1)).toBe('Martes')
     }
+  })
+
+  it('un día imposible no se inventa: cae al nombre del día', () => {
+    // la fuente real (todayInTimezone) nunca los produce; defensa en profundidad
+    expect(formatTodayLabel('2026-02-31', 6)).toBe('Domingo')
+    expect(formatTodayLabel('2026-08-00', 1)).toBe('Martes')
+    expect(formatTodayLabel('2026-04-31', 4)).toBe('Viernes')
+  })
+
+  it('febrero conoce los bisiestos', () => {
+    expect(formatTodayLabel('2024-02-29', 3)).toBe('Jueves, 29 de febrero')
+    expect(formatTodayLabel('2026-02-29', 6)).toBe('Domingo')
+    // 1900 no fue bisiesto (divisible por 100 pero no por 400); 2000 sí
+    expect(formatTodayLabel('1900-02-29', 3)).toBe('Jueves')
+    expect(formatTodayLabel('2000-02-29', 1)).toBe('Martes, 29 de febrero')
   })
 
   it('un mes fuera de rango no produce «undefined» en pantalla', () => {

@@ -196,7 +196,7 @@ export function RoutineBoard({
             {/* control segmentado hundido, no otra tarjeta: el chrome se
                 diferencia del contenido (spec §4) */}
             <div className="flex gap-1 rounded-lg bg-edge/40 p-1">
-              <PanelTab active={tab === 'chat'} onClick={goToChat}>
+              <PanelTab active={tab === 'chat'} onClick={() => setTab('chat')}>
                 Chat
               </PanelTab>
               <PanelTab active={tab === 'today'} onClick={() => setTab('today')}>
@@ -252,7 +252,7 @@ export function RoutineBoard({
                   <div className="pointer-events-auto flex flex-wrap justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setTab('chat')}
+                      onClick={goToChat}
                       className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
                     >
                       Contárselo al chat

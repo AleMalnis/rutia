@@ -54,7 +54,7 @@ export function TodayPanel({
   // por posición y no por la hora del navegador a propósito: un cálculo con
   // reloj de cliente exigiría hidratar sin desajuste, y lo que quedó atrás sin
   // marcar sigue siendo lo primero que hay que atender.
-  const primerPendienteId = optimistic.find((entry) => !entry.done)?.item.id ?? null
+  const firstPendingId = optimistic.find((entry) => !entry.done)?.item.id ?? null
 
   function toggle(entry: TodayEntry) {
     const next = !entry.done
@@ -125,14 +125,14 @@ export function TodayPanel({
             const color =
               (entry.item.categoryId && colorByCategory.get(entry.item.categoryId)) || null
             const texto = `${entry.item.title}${entry.item.detail ? ` · ${entry.item.detail}` : ''}`
-            const esPrimerPendiente = entry.item.id === primerPendienteId
+            const isFirstPending = entry.item.id === firstPendingId
             return (
               <li
                 key={entry.item.id}
                 // barra lateral de acento en lo primero que queda por hacer:
                 // el borde transparente en el resto evita que la lista salte
                 className={`flex items-center gap-2 border-l-2 pl-1.5 ${
-                  esPrimerPendiente ? 'border-accent' : 'border-transparent'
+                  isFirstPending ? 'border-accent' : 'border-transparent'
                 }`}
               >
                 {/* el label amplía el área táctil de la casilla, que sola
@@ -165,7 +165,7 @@ export function TodayPanel({
                   className={`min-w-0 flex-1 truncate py-1.5 text-left text-sm transition-colors hover:text-ink-2 ${
                     entry.done
                       ? 'text-ink-3 line-through'
-                      : esPrimerPendiente
+                      : isFirstPending
                         ? 'font-medium text-ink'
                         : 'text-ink'
                   }`}

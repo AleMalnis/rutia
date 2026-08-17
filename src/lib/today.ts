@@ -88,16 +88,30 @@ const MONTH_NAMES = [
  * error de huso que este módulo existe para evitar.
  */
 export function formatTodayLabel(date: string, weekday: number): string {
-  const match = /^\d{4}-(\d{2})-(\d{2})$/.exec(date)
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
   const dayName = DAY_NAMES[weekday]
   // sin fecha reconocible o sin día válido, el nombre del día ya informa; una
   // cabecera a medias es mejor que una fecha inventada
   if (match == null || dayName == null) return dayName ?? ''
 
-  const monthName = MONTH_NAMES[Number(match[1]) - 1]
-  if (monthName == null) return dayName
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const monthName = MONTH_NAMES[month - 1]
+  // un día imposible («31 de febrero», día 0) tampoco se inventa: la fuente
+  // real (todayInTimezone) nunca lo produce, pero esta función no puede saber
+  // de dónde viene su entrada. Sin Date, fiel al resto del módulo.
+  if (monthName == null || day < 1 || day > daysInMonth(year, month)) return dayName
 
-  return `${dayName}, ${Number(match[2])} de ${monthName}`
+  return `${dayName}, ${day} de ${monthName}`
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+    return leap ? 29 : 28
+  }
+  return [4, 6, 9, 11].includes(month) ? 30 : 31
 }
 
 // Los ítems que tocan un día concreto, en orden de reloj. Un ítem multi-día
