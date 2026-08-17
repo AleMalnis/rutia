@@ -42,13 +42,15 @@ export function WeekCalendar({ items, categories, todayWeekday, highlightIds, on
       <div className="min-w-max">
         <div className={GRID_COLS}>
           <div />
+          {/* Versalitas pequeñas: son chrome, y a text-sm medium competían con
+              los títulos de los bloques, que miden lo mismo (spec §4). El
+              text-transform es solo CSS, así que el lector de pantalla sigue
+              leyendo «Lunes» y no letra por letra. */}
           {DAY_NAMES.map((name, day) => (
             <div
               key={name}
-              className={`border-b border-l border-edge px-2 py-2 text-center text-sm ${
-                day === todayWeekday
-                  ? 'font-semibold text-accent'
-                  : 'font-medium text-ink-2'
+              className={`border-b border-l border-edge px-2 py-2.5 text-center text-xs uppercase tracking-wide ${
+                day === todayWeekday ? 'font-semibold text-accent' : 'font-medium text-ink-3'
               }`}
             >
               {name}

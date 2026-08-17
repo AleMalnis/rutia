@@ -88,6 +88,11 @@ export function RoutineBoard({
   // devolvería al usuario a su sitio.
   const trigger = useRef<HTMLElement | null>(null)
   const restorePending = useRef(false)
+  // Respaldo del foco: el «Nuevo ítem» del estado vacío se DESMONTA al guardar
+  // el primer ítem (la capa desaparece con items.length), así que devolver el
+  // foco a su disparador enfocaría un nodo desconectado y caería a <body>. El
+  // botón de la barra siempre está, y es el equivalente más cercano.
+  const newItemButton = useRef<HTMLButtonElement>(null)
 
   function open(next: NonNullable<Dialog>) {
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -106,11 +111,30 @@ export function RoutineBoard({
   useEffect(() => {
     if (dialog == null && restorePending.current) {
       restorePending.current = false
-      trigger.current?.focus()
+      const target = trigger.current?.isConnected ? trigger.current : newItemButton.current
+      target?.focus()
     }
   }, [dialog])
 
   const openItem = (item: RoutineItem | null) => open({ type: 'item', item })
+
+  // El CTA del estado vacío tiene que LLEVAR al chat, no solo seleccionarlo:
+  // con la rutina vacía `tab` ya vale 'chat' (línea de arriba), así que un
+  // setTab suelto no cambiaría nada y el botón parecería roto. Y en móvil el
+  // panel queda por encima de los 864 px de rejilla, fuera de pantalla.
+  // No se enfoca el campo del chat a propósito: sin clave BYOK está
+  // deshabilitado —justo el caso del usuario nuevo— y enfocarlo sería otro
+  // no-op silencioso.
+  const chatColumn = useRef<HTMLDivElement>(null)
+
+  function goToChat() {
+    setTab('chat')
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    chatColumn.current?.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  }
 
   return (
     <>
@@ -151,6 +175,7 @@ export function RoutineBoard({
               Apariencia
             </button>
             <button
+              ref={newItemButton}
               type="button"
               onClick={() => openItem(null)}
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
@@ -164,7 +189,7 @@ export function RoutineBoard({
             (spec §4): así el orden de lectura y de tabulación coincide con lo
             que se ve. Solo en escritorio pasa a la columna derecha. */}
         <div className="flex flex-col gap-5 md:gap-6 lg:grid lg:grid-cols-[1fr_20rem] lg:items-start">
-          <div className="flex flex-col gap-2 lg:order-2">
+          <div ref={chatColumn} className="flex flex-col gap-2 lg:order-2">
             {/* Ambos paneles quedan montados y se alternan con hidden: así el
                 chat no pierde la conversación al mirar «Hoy», y el panel
                 «Hoy» sigue reportando la zona horaria del navegador. */}
@@ -202,7 +227,7 @@ export function RoutineBoard({
 
           {/* sombra en vez de borde pleno (spec §4): la superficie grande se
               separa por elevación; el borde queda rebajado como refuerzo */}
-          <div className="overflow-hidden rounded-xl border border-edge/60 bg-card shadow-[var(--shadow-card)] lg:order-1">
+          <div className="relative overflow-hidden rounded-xl border border-edge/60 bg-card shadow-[var(--shadow-card)] lg:order-1">
             <WeekCalendar
               items={items}
               categories={categories}
@@ -210,14 +235,41 @@ export function RoutineBoard({
               highlightIds={highlightIds}
               onItemClick={openItem}
             />
+
+            {/* Estado vacío SOBRE la rejilla (spec §4): antes era una línea
+                gris debajo de 864 px de cuadrícula desierta, la pantalla que
+                más se juzga. `pointer-events-none` en la capa para no capturar
+                el desplazamiento horizontal del calendario en móvil; los
+                botones lo recuperan. */}
+            {items.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-card/80 p-4">
+                <div className="flex max-w-xs flex-col items-center gap-3 text-center">
+                  <p className="text-base font-semibold text-ink">Tu semana está en blanco</p>
+                  <p className="text-sm text-ink-3">
+                    Cuéntale tu rutina al asistente y la coloca por ti, o añade el primer ítem a
+                    mano.
+                  </p>
+                  <div className="pointer-events-auto flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={goToChat}
+                      className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
+                    >
+                      Contárselo al chat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openItem(null)}
+                      className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
+                    >
+                      Nuevo ítem
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {items.length === 0 && (
-          <p className="text-sm text-ink-3">
-            Tu rutina está vacía. Pulsa «Nuevo ítem» para empezar.
-          </p>
-        )}
 
         {/* los legales al pie (spec §4): la cabecera es la posición de máxima
             jerarquía y esto es lo de menor uso. Dentro del contenedor inert,

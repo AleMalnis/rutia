@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_TIMEZONE, itemsForDay, todayInTimezone } from '@/lib/today'
+import { DEFAULT_TIMEZONE, formatTodayLabel, itemsForDay, todayInTimezone } from '@/lib/today'
 import type { RoutineItem } from '@/lib/schemas'
 import { createRoutineService } from '@/services/routine.service'
 import type { CategoriesRepo } from '@/repositories/categories.repo'
@@ -327,5 +327,49 @@ describe('RoutineService: hoy y completado', () => {
 
     expect(result).toMatchObject({ ok: false, reason: 'invalid' })
     expect(calls.markDone).toBe(0)
+  })
+})
+
+describe('formatTodayLabel', () => {
+  it('compone la fecha en palabras, sin cero delante en el día', () => {
+    expect(formatTodayLabel('2026-08-16', 6)).toBe('Domingo, 16 de agosto')
+    expect(formatTodayLabel('2026-01-05', 0)).toBe('Lunes, 5 de enero')
+    expect(formatTodayLabel('2026-12-31', 3)).toBe('Jueves, 31 de diciembre')
+  })
+
+  it('no reinterpreta la fecha con ningún huso: el 1 de un mes sigue siendo el 1', () => {
+    // el fallo clásico sería construir un Date a medianoche UTC y formatearlo
+    // en local, que en husos negativos retrocede al último día del mes anterior
+    expect(formatTodayLabel('2026-03-01', 6)).toBe('Domingo, 1 de marzo')
+  })
+
+  it('con una fecha ilegible se queda en el nombre del día, sin inventar', () => {
+    for (const invalidDate of ['', 'ayer', '2026-8-1', '2026-13-01x']) {
+      expect(formatTodayLabel(invalidDate, 1)).toBe('Martes')
+    }
+  })
+
+  it('un día imposible no se inventa: cae al nombre del día', () => {
+    // la fuente real (todayInTimezone) nunca los produce; defensa en profundidad
+    expect(formatTodayLabel('2026-02-31', 6)).toBe('Domingo')
+    expect(formatTodayLabel('2026-08-00', 1)).toBe('Martes')
+    expect(formatTodayLabel('2026-04-31', 4)).toBe('Viernes')
+  })
+
+  it('febrero conoce los bisiestos', () => {
+    expect(formatTodayLabel('2024-02-29', 3)).toBe('Jueves, 29 de febrero')
+    expect(formatTodayLabel('2026-02-29', 6)).toBe('Domingo')
+    // 1900 no fue bisiesto (divisible por 100 pero no por 400); 2000 sí
+    expect(formatTodayLabel('1900-02-29', 3)).toBe('Jueves')
+    expect(formatTodayLabel('2000-02-29', 1)).toBe('Martes, 29 de febrero')
+  })
+
+  it('un mes fuera de rango no produce «undefined» en pantalla', () => {
+    expect(formatTodayLabel('2026-00-10', 2)).toBe('Miércoles')
+    expect(formatTodayLabel('2026-13-10', 2)).toBe('Miércoles')
+  })
+
+  it('un weekday fuera de rango devuelve cadena vacía, no «undefined»', () => {
+    expect(formatTodayLabel('2026-08-17', 9)).toBe('')
   })
 })
