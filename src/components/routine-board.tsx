@@ -35,6 +35,8 @@ export function RoutineBoard({
   chatMessages,
   llmStatus: initialLlmStatus,
   mcpUrl,
+  identity,
+  sessionAction,
   children,
 }: {
   items: RoutineItem[]
@@ -47,7 +49,15 @@ export function RoutineBoard({
   llmStatus: LlmKeyStatusView | null
   /** URL del servidor MCP, o null si este despliegue no lo tiene activado. */
   mcpUrl: string | null
-  // la cabecera de la página se recibe como slot para que quede DENTRO del
+  /**
+   * Identidad de la cabecera (marca + fecha). Viene de la página porque ahí
+   * están el correo y la fecha del servidor; el tablero la compone con el
+   * cúmulo de utilidades, que necesita su estado de diálogos (spec §4).
+   */
+  identity: React.ReactNode
+  /** El formulario de cerrar sesión: es una server action de la página. */
+  sessionAction: React.ReactNode
+  // contenido previo a la cabecera (el aviso de instalación). Todo dentro del
   // contenedor inert: si no, con el diálogo abierto se puede tabular hasta
   // «Cerrar sesión» y cerrar sesión perdiendo lo que se estaba editando
   children?: React.ReactNode
@@ -142,54 +152,81 @@ export function RoutineBoard({
           hasta las tarjetas del calendario que quedan detrás del velo y
           abrir otro ítem, perdiendo lo que se estaba editando */}
       <div className="flex flex-1 flex-col gap-5 md:gap-6" inert={dialog != null}>
-        {children}
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* «Categorías» abre el gestor y va junto a la leyenda que gobierna */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <button
-              type="button"
-              onClick={() => open({ type: 'categories' })}
-              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40"
-            >
-              Categorías
-            </button>
-            <CategoryLegend categories={categories} />
-          </div>
-          {/* Tres niveles de acción (spec §4): Nuevo ítem (acento) >
-              Categorías (contorno) > ajustes (fantasma). La jerarquía se
-              arregla rebajando lo terciario, no amplificando lo primario. */}
-          <div className="flex gap-2">
+        {/* App bar (spec §4, tanda 3): pegajosa con desenfoque para que el
+            contenido se deslice POR DEBAJO al hacer scroll — la oclusión en
+            movimiento es la señal de profundidad más fuerte. Los márgenes
+            negativos la llevan a sangre sobre el padding del main, y por eso
+            va PRIMERA: con algo delante, el -mt se comería ese hueco en vez
+            del padding. z-40: sobre el estado vacío (30) y la franja de horas
+            (20), bajo los diálogos (50).
+            Pegajosa solo desde sm: en un móvil envuelve en dos filas y son
+            ~105 px (16 % de la pantalla) confiscados durante todo el scroll;
+            ahí se desplaza con el contenido y el calendario recupera el alto. */}
+        <header className="-mx-4 -mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-edge/60 bg-page/80 px-4 py-3 backdrop-blur sm:sticky sm:top-0 sm:z-40 md:-mx-6 md:-mt-6 md:px-6">
+          {identity}
+          {/* Cúmulo de utilidades, arriba a la derecha como toda app: ajustes
+              de app (IA, Apariencia) y, tras el separador, la sesión. Son
+              terciarias: fantasma, sin competir con el contenido.
+              `ml-auto` porque `justify-between` se resuelve POR LÍNEA: al
+              envolver, una línea con un solo elemento lo alinea a la
+              izquierda y los ajustes acababan bajo la fecha, leyéndose como
+              parte de ella. */}
+          <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
               onClick={() => open({ type: 'ia' })}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink active:translate-y-px"
             >
               IA
             </button>
             <button
               type="button"
               onClick={() => open({ type: 'appearance' })}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-edge/40 hover:text-ink active:translate-y-px"
             >
               Apariencia
             </button>
+            <span aria-hidden className="mx-1 h-4 w-px bg-edge" />
+            {sessionAction}
+          </div>
+        </header>
+
+        {children}
+
+        {/* Barra de contenido (spec §4, tanda 3): las acciones que tocan la
+            rutina viven JUNTAS y junto a lo que gobiernan — antes «Nuevo
+            ítem» convivía con los ajustes y «Categorías» estaba en la otra
+            punta, agrupación por azar que la ley de proximidad castiga. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex items-center gap-2">
             <button
               ref={newItemButton}
               type="button"
               onClick={() => openItem(null)}
-              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))]"
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink shadow-[var(--shadow-card)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_85%,var(--accent-ink))] active:translate-y-px"
             >
               Nuevo ítem
             </button>
+            <button
+              type="button"
+              onClick={() => open({ type: 'categories' })}
+              className="rounded-md border border-edge bg-card px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-edge/40 active:translate-y-px"
+            >
+              Categorías
+            </button>
           </div>
+          <CategoryLegend categories={categories} />
         </div>
 
         {/* «Hoy» va primero en el DOM porque en móvil es la vista principal
             (spec §4): así el orden de lectura y de tabulación coincide con lo
             que se ve. Solo en escritorio pasa a la columna derecha. */}
         <div className="flex flex-col gap-5 md:gap-6 lg:grid lg:grid-cols-[1fr_20rem] lg:items-start">
-          <div ref={chatColumn} className="flex flex-col gap-2 lg:order-2">
+          {/* scroll-mt donde la app bar es pegajosa: sin él, `scrollIntoView`
+              alinea el borde de la columna con el borde del scrollport, que es
+              exactamente donde vive la barra — el conmutador Chat/Hoy quedaba
+              tapado del todo y sus clics los capturaba la barra. */}
+          <div ref={chatColumn} className="flex flex-col gap-2 sm:scroll-mt-20 lg:order-2">
             {/* Ambos paneles quedan montados y se alternan con hidden: así el
                 chat no pierde la conversación al mirar «Hoy», y el panel
                 «Hoy» sigue reportando la zona horaria del navegador. */}

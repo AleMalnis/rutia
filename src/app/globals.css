@@ -54,7 +54,7 @@
      forma natural (negro sobre casi negro), que es lo correcto: allí la
      elevación ya la da la tarjeta más clara que la página, y una sombra
      teñida con la tinta sería un halo claro. */
-  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05), 0 4px 12px -4px rgb(0 0 0 / 0.08);
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
