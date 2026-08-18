@@ -78,14 +78,20 @@ export function WeekPoster({ items, categories, date, weekday, theme, mode }: Pr
         color: INK,
         display: 'flex',
         flexDirection: 'column',
-        gap: 24,
+        // Presupuesto vertical CERRADO (los line-height van fijados porque la
+        // fuente la elige el usuario y cada una mide distinto): cabecera 72 +
+        // hueco 16 + rótulos de día 29 + rejilla 864 = 981 ≤ 1080 − 96 de
+        // padding. Con gap 24 y alturas libres se comían el margen inferior.
+        gap: 16,
         fontFamily: 'var(--font-app)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 42, fontWeight: 600, letterSpacing: '-0.02em' }}>Mi semana</div>
-          <div style={{ marginTop: 4, fontSize: 18, color: INK3 }}>
+          <div style={{ fontSize: 42, lineHeight: 1.1, fontWeight: 600, letterSpacing: '-0.02em' }}>
+            Mi semana
+          </div>
+          <div style={{ marginTop: 4, fontSize: 18, lineHeight: 1.2, color: INK3 }}>
             RutIA · {formatTodayLabel(date, weekday)}
           </div>
         </div>
@@ -117,9 +123,10 @@ export function WeekPoster({ items, categories, date, weekday, theme, mode }: Pr
             <div
               key={name}
               style={{
-                padding: '8px 0 10px',
+                padding: '6px 0 8px',
                 textAlign: 'center',
                 fontSize: 15,
+                lineHeight: 1,
                 fontWeight: 500,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
