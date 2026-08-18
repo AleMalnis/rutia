@@ -222,6 +222,7 @@ export function RoutineBoard({
               categories={categories}
               date={todayDate}
               weekday={todayWeekday}
+              theme={appearance.theme}
             />
           </div>
           <CategoryLegend categories={categories} />

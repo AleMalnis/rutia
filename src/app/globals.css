@@ -91,6 +91,20 @@
   --accent: #1c5cab;
   --accent-ink: #ffffff;
 }
+/* Zinc claro explícito, idéntico a :root. Existe para que un subárbol pueda
+   FORZAR zinc claro dentro de una app en oscuro (la lámina de exportación,
+   spec §4): sin este bloque, data-theme="zinc" no redefine nada y heredaría
+   los valores oscuros del contenedor. */
+[data-theme="zinc"] {
+  --page: #fafafa;
+  --card: #ffffff;
+  --edge: #e4e4e7;
+  --ink: #18181b;
+  --ink-2: #3f3f46;
+  --ink-3: #71717a;
+  --accent: #18181b;
+  --accent-ink: #fafafa;
+}
 [data-theme="arena"] {
   --page: #faf6ef;
   --card: #fffdf8;

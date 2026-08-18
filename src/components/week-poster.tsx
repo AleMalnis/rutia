@@ -5,30 +5,33 @@ import {
   HOUR_PX,
   reminderBottoms,
 } from '@/lib/calendar'
-import { FALLBACK_CATEGORY_COLOR } from '@/lib/category-colors'
+import { categoryColorStyle } from '@/lib/category-colors'
 import { formatTodayLabel } from '@/lib/today'
 import type { Category, RoutineItem } from '@/lib/schemas'
 
 // La lámina de exportación (spec §4, Must #13): la semana completa a 1920×1080
-// para imprimir o de fondo de pantalla. Presentacional pura y con PALETA CLARA
-// FIJA, independiente del tema elegido: la lámina debe salir igual para todos,
-// así que aquí no hay variables de tema — hexes de zinc claro y el color de
-// categoría tal como se persiste (la variante clara del muestrario).
+// para imprimir o de fondo de pantalla. Presentacional pura y con LOS COLORES
+// DEL USUARIO (decisión suya, sustituye a la paleta fija inicial): el tema de
+// superficie elegido en Apariencia, en el modo claro u oscuro que se escoja
+// al exportar.
 //
 // Reutiliza la geometría real del calendario (blockGeometry, reminderBottoms):
 // lo exportado es lo que el usuario ve, no una segunda implementación que
 // envejecería aparte.
 
-const POSTER = {
-  width: 1920,
-  height: 1080,
-  padding: 48,
-  ink: '#18181b',
-  ink2: '#3f3f46',
-  ink3: '#71717a',
-  edge: '#e4e4e7',
-  page: '#ffffff',
-} as const
+const POSTER = { width: 1920, height: 1080, padding: 48 } as const
+
+// Colores vía las variables del sistema de temas (spec §4): la raíz fuerza
+// data-theme/data-mode y las superficies resuelven como en la app; el par
+// claro/oscuro de cada categoría se resuelve localmente con la prop mode (ver
+// catVars). html-to-image copia estilos COMPUTADOS al clonar, así que las
+// variables llegan ya resueltas al PNG.
+const INK = 'var(--ink)'
+const INK2 = 'var(--ink-2)'
+const INK3 = 'var(--ink-3)'
+const EDGE = 'var(--edge)'
+const CARD = 'var(--card)'
+const PAGE = 'var(--page)'
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6)
 
@@ -39,12 +42,25 @@ type Props = {
   date: string
   /** Día actual (0=lunes), para el rótulo de la fecha. */
   weekday: number
+  /** Tema de superficie del usuario (spec §4): tu póster, tus colores. */
+  theme: string
+  /** Elegido al exportar: clara u oscura, pensando en el fondo de pantalla. */
+  mode: 'light' | 'dark'
 }
 
-export function WeekPoster({ items, categories, date, weekday }: Props) {
+export function WeekPoster({ items, categories, date, weekday, theme, mode }: Props) {
   const colorById = new Map(categories.map((c) => [c.id, c.color]))
   const colorOf = (item: RoutineItem) =>
-    (item.categoryId && colorById.get(item.categoryId)) || FALLBACK_CATEGORY_COLOR
+    (item.categoryId && colorById.get(item.categoryId)) || null
+  // El par claro/oscuro se resuelve AQUI con la prop mode, no con la clase
+  // cat-mark: esa clase mira ancestros [data-mode], y la lamina vive anidada
+  // dentro del main de la app — exportar lamina clara con la app en oscuro
+  // heredaria el modo equivocado. Var inline que referencia vars inline del
+  // mismo elemento: resuelve por elemento, inmune al arbol de fuera.
+  const catVars = (light: string | null) => ({
+    ...categoryColorStyle(light),
+    '--cat': mode === 'dark' ? 'var(--cat-dark)' : 'var(--cat-light)',
+  })
   // solo las categorías en uso: la leyenda de la lámina describe lo que se ve,
   // no el catálogo entero
   const usedCategoryIds = new Set(items.map((item) => item.categoryId).filter(Boolean))
@@ -52,12 +68,14 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
 
   return (
     <div
+      data-theme={theme}
+      data-mode={mode}
       style={{
         width: POSTER.width,
         height: POSTER.height,
         padding: POSTER.padding,
-        backgroundColor: POSTER.page,
-        color: POSTER.ink,
+        backgroundColor: PAGE,
+        color: INK,
         display: 'flex',
         flexDirection: 'column',
         gap: 24,
@@ -67,20 +85,21 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 42, fontWeight: 600, letterSpacing: '-0.02em' }}>Mi semana</div>
-          <div style={{ marginTop: 4, fontSize: 18, color: POSTER.ink3 }}>
+          <div style={{ marginTop: 4, fontSize: 18, color: INK3 }}>
             RutIA · {formatTodayLabel(date, weekday)}
           </div>
         </div>
         {legend.length > 0 && (
-          <div style={{ display: 'flex', gap: 20, fontSize: 16, color: POSTER.ink2 }}>
+          <div style={{ display: 'flex', gap: 20, fontSize: 16, color: INK2 }}>
             {legend.map((category) => (
               <span key={category.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span
                   style={{
+                    ...catVars(category.color),
                     width: 12,
                     height: 12,
                     borderRadius: 9999,
-                    backgroundColor: category.color,
+                    backgroundColor: 'var(--cat)',
                   }}
                 />
                 {category.name}
@@ -104,9 +123,9 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                 fontWeight: 500,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                color: POSTER.ink3,
-                borderBottom: `1px solid ${POSTER.edge}`,
-                borderLeft: `1px solid ${POSTER.edge}`,
+                color: INK3,
+                borderBottom: `1px solid ${EDGE}`,
+                borderLeft: `1px solid ${EDGE}`,
               }}
             >
               {name}
@@ -133,7 +152,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     transform: 'translateY(-50%)',
                     fontSize: 15,
                     fontVariantNumeric: 'tabular-nums',
-                    color: POSTER.ink3,
+                    color: INK3,
                   }}
                 >
                   {String(hour).padStart(2, '0')}:00
@@ -151,7 +170,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
             return (
               <div
                 key={name}
-                style={{ position: 'relative', borderLeft: `1px solid ${POSTER.edge}` }}
+                style={{ position: 'relative', borderLeft: `1px solid ${EDGE}` }}
               >
                 {HOURS.map((hour, index) =>
                   index === 0 ? null : (
@@ -161,7 +180,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                         position: 'absolute',
                         insetInline: 0,
                         top: index * HOUR_PX,
-                        borderTop: `1px solid ${POSTER.edge}80`,
+                        borderTop: `1px solid color-mix(in srgb, var(--edge) 50%, transparent)`,
                       }}
                     />
                   ),
@@ -173,7 +192,6 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     if (item.end == null) return null
                     const geometry = blockGeometry(item.start, item.end)
                     if (geometry == null) return null
-                    const color = colorOf(item)
                     // La lámina es estática: cada título puede dimensionarse
                     // según el espacio real de su bloque, cosa que en pantalla
                     // no se hace. Un bloque de ≥1 h tiene sitio de sobra para
@@ -184,14 +202,15 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                       <div
                         key={item.id}
                         style={{
+                          ...catVars(colorOf(item)),
                           position: 'absolute',
                           insetInline: 4,
                           top: geometry.top,
                           height: geometry.height,
                           overflow: 'hidden',
                           borderRadius: 6,
-                          borderLeft: `4px solid ${color}`,
-                          backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
+                          borderLeft: '4px solid var(--cat)',
+                          backgroundColor: 'color-mix(in srgb, var(--cat) 15%, transparent)',
                           padding: tall ? '6px 10px' : '2px 6px',
                         }}
                       >
@@ -211,7 +230,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                           <div
                             style={{
                               fontSize: tall ? 15 : 13,
-                              color: POSTER.ink2,
+                              color: INK2,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -228,6 +247,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                   <div
                     key={item.id}
                     style={{
+                      ...catVars(colorOf(item)),
                       position: 'absolute',
                       right: 4,
                       top: bottoms[index],
@@ -239,8 +259,8 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                       height: 20,
                       padding: '0 7px',
                       borderRadius: 9999,
-                      border: `1px solid ${colorOf(item)}`,
-                      backgroundColor: POSTER.page,
+                      border: '1px solid var(--cat)',
+                      backgroundColor: CARD,
                     }}
                   >
                     <span
@@ -249,7 +269,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                         height: 8,
                         flexShrink: 0,
                         borderRadius: 9999,
-                        backgroundColor: colorOf(item),
+                        backgroundColor: 'var(--cat)',
                       }}
                     />
                     <span

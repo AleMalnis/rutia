@@ -52,6 +52,8 @@ describe('WeekPoster', () => {
       categories: [CATEGORY],
       date: '2026-08-17',
       weekday: 0,
+      theme: 'pizarra',
+      mode: 'light' as const,
     }),
   )
 
@@ -79,6 +81,8 @@ describe('WeekPoster', () => {
         categories: [CATEGORY, unused],
         date: '2026-08-17',
         weekday: 0,
+        theme: 'pizarra',
+        mode: 'light' as const,
       }),
     )
     expect(withUnused).not.toContain('Ocio')
@@ -86,7 +90,14 @@ describe('WeekPoster', () => {
 
   it('con la rutina vacía sigue siendo una lámina válida, sin leyenda', () => {
     const empty = renderToStaticMarkup(
-      createElement(WeekPoster, { items: [], categories: [CATEGORY], date: '2026-08-17', weekday: 0 }),
+      createElement(WeekPoster, {
+        items: [],
+        categories: [CATEGORY],
+        date: '2026-08-17',
+        weekday: 0,
+        theme: 'pizarra',
+        mode: 'light' as const,
+      }),
     )
     expect(empty).toContain('Mi semana')
     expect(empty).not.toContain('Deporte')
