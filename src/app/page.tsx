@@ -23,7 +23,11 @@ function features() {
     },
     {
       title: 'Se organiza conversando',
-      detail: `Un agente de IA crea, mueve y borra por ti. Funciona con tu propia clave de API (Anthropic, OpenAI o Google)${withMcp ? ' o desde tu Claude o ChatGPT conectando RutIA por MCP' : ''}.`,
+      // «desde Claude» y no «Claude o ChatGPT»: ChatGPT exige modo
+      // desarrollador y la app de Gemini no admite conectores propios (§6.5).
+      // La pantalla de conectores da los pasos de cada uno; la portada no
+      // promete paridad que no existe.
+      detail: `Un agente de IA crea, mueve y borra por ti. Funciona con tu propia clave de API (Anthropic, OpenAI o Google)${withMcp ? ' o conectando RutIA por MCP a Claude, a ChatGPT o a tu editor' : ''}.`,
     },
     {
       title: 'En tu móvil, sin tiendas',
