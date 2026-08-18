@@ -152,6 +152,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 
 **Exportación (lámina):** botón «Exportar» junto a las acciones de contenido del calendario. Genera una **lámina dedicada** —un componente aparte (`WeekPoster`) montado fuera de pantalla solo durante la exportación, a resolución fija 1920×1080— con la semana completa, título, fecha y leyenda de categorías, convertida a PNG en el navegador con `html-to-image` (dependencia sancionada aquí). Decisiones de la lámina:
 - **Paleta clara fija e independiente del tema elegido**: la lámina es para imprimir o de fondo de pantalla, y debe salir igual para todos; usa los colores de categoría tal como se persisten (la variante clara del muestrario) y reutiliza la geometría real del calendario (`blockGeometry`, `reminderBottoms`), así que lo exportado es lo que el usuario ve, no una segunda implementación que envejecería aparte.
+- **Tipografía propia, un paso más grande que la del calendario en pantalla** (títulos de ítem 14 px, horas y detalles 13 px, cabeceras de día 15 px, leyenda 16 px): la pantalla se mira de cerca y con zoom del navegador a mano; la lámina se ve a distancia —fondo de pantalla, papel en la nevera— y al ser un lienzo fijo de 1920×1080 el tamaño se decide una vez. Los chips conservan su caja de 20 px: el apilado de `reminderBottoms` asume esa altura.
 - Antes de capturar se espera a `document.fonts.ready`: sin eso el PNG puede salir con la fuente de respaldo.
 - Fichero: `rutia-semana-YYYY-MM-DD.png` con la fecha del día.
 

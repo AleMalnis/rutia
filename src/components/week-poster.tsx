@@ -66,19 +66,19 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.02em' }}>Mi semana</div>
-          <div style={{ marginTop: 4, fontSize: 15, color: POSTER.ink3 }}>
+          <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em' }}>Mi semana</div>
+          <div style={{ marginTop: 4, fontSize: 17, color: POSTER.ink3 }}>
             RutIA · {formatTodayLabel(date, weekday)}
           </div>
         </div>
         {legend.length > 0 && (
-          <div style={{ display: 'flex', gap: 20, fontSize: 14, color: POSTER.ink2 }}>
+          <div style={{ display: 'flex', gap: 20, fontSize: 16, color: POSTER.ink2 }}>
             {legend.map((category) => (
               <span key={category.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span
                   style={{
-                    width: 10,
-                    height: 10,
+                    width: 12,
+                    height: 12,
                     borderRadius: 9999,
                     backgroundColor: category.color,
                   }}
@@ -100,7 +100,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
               style={{
                 padding: '8px 0 10px',
                 textAlign: 'center',
-                fontSize: 13,
+                fontSize: 15,
                 fontWeight: 500,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
@@ -131,7 +131,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     top: index * HOUR_PX,
                     right: 8,
                     transform: 'translateY(-50%)',
-                    fontSize: 11,
+                    fontSize: 13,
                     fontVariantNumeric: 'tabular-nums',
                     color: POSTER.ink3,
                   }}
@@ -191,7 +191,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                       >
                         <div
                           style={{
-                            fontSize: 12,
+                            fontSize: 14,
                             fontWeight: 600,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -203,7 +203,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                         {item.detail && (
                           <div
                             style={{
-                              fontSize: 11,
+                              fontSize: 13,
                               color: POSTER.ink2,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -247,7 +247,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     />
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
