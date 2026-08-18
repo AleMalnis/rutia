@@ -88,8 +88,15 @@ Sustituye `TU-DOMINIO` codificado (`%2F` son las barras). Para la instancia púb
 [**Conectar RutIA a Claude**](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=RutIA&connectorUrl=https%3A%2F%2Frutia-six.vercel.app%2Fapi%2Fmcp).
 El enlace solo rellena el formulario: sigue habiendo que confirmar y pasar por el consentimiento.
 
-En **ChatGPT** hay que activar el *modo desarrollador* en Ajustes → Conectores. Ten en cuenta que
-las acciones de escritura en conectores propios pueden estar limitadas según el plan.
+**No todos los clientes lo admiten igual** (comprobado en agosto de 2026; esto cambia cada pocos
+meses, así que conviene reverificarlo antes de fiarse):
+
+| Cliente | ¿Conector MCP propio? | Cómo |
+|---|---|---|
+| **Claude** (web y escritorio) | Sí | Settings → Connectors → Add custom connector, o el enlace de un clic de arriba |
+| **ChatGPT** | Sí, con *modo desarrollador* | Ajustes → Apps → Ajustes avanzados → «Modo desarrollador». **Solo en la web**, no en la app móvil; planes Plus, Pro, Business, Enterprise o Edu. En cuentas de empresa un administrador debe permitirlo antes. Con el modo desarrollador activo, las **escrituras funcionan** |
+| **IDEs y CLIs** (VS Code, Cursor, Claude Code, Gemini CLI…) | Sí | La URL en su configuración de servidores MCP |
+| **App de Gemini** (chat de consumo) | **No** | Solo acepta conectores propios dentro de tareas de *Spark*, o en Gemini Enterprise. Para el chat de Gemini normal, la vía es el chat integrado de RutIA con una clave de API de Google (BYOK) |
 
 ### Herramientas expuestas
 
