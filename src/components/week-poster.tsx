@@ -66,8 +66,8 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em' }}>Mi semana</div>
-          <div style={{ marginTop: 4, fontSize: 17, color: POSTER.ink3 }}>
+          <div style={{ fontSize: 42, fontWeight: 600, letterSpacing: '-0.02em' }}>Mi semana</div>
+          <div style={{ marginTop: 4, fontSize: 18, color: POSTER.ink3 }}>
             RutIA · {formatTodayLabel(date, weekday)}
           </div>
         </div>
@@ -131,7 +131,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     top: index * HOUR_PX,
                     right: 8,
                     transform: 'translateY(-50%)',
-                    fontSize: 13,
+                    fontSize: 15,
                     fontVariantNumeric: 'tabular-nums',
                     color: POSTER.ink3,
                   }}
@@ -174,6 +174,12 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     const geometry = blockGeometry(item.start, item.end)
                     if (geometry == null) return null
                     const color = colorOf(item)
+                    // La lámina es estática: cada título puede dimensionarse
+                    // según el espacio real de su bloque, cosa que en pantalla
+                    // no se hace. Un bloque de ≥1 h tiene sitio de sobra para
+                    // letra de póster; uno de 30 min (24 px) no, y ahí manda
+                    // no cortarse.
+                    const tall = geometry.height >= HOUR_PX
                     return (
                       <div
                         key={item.id}
@@ -186,13 +192,14 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                           borderRadius: 6,
                           borderLeft: `4px solid ${color}`,
                           backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
-                          padding: '2px 6px',
+                          padding: tall ? '6px 10px' : '2px 6px',
                         }}
                       >
                         <div
                           style={{
-                            fontSize: 14,
+                            fontSize: tall ? 19 : 14,
                             fontWeight: 600,
+                            lineHeight: 1.25,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -203,7 +210,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                         {item.detail && (
                           <div
                             style={{
-                              fontSize: 13,
+                              fontSize: tall ? 15 : 13,
                               color: POSTER.ink2,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -247,7 +254,7 @@ export function WeekPoster({ items, categories, date, weekday }: Props) {
                     />
                     <span
                       style={{
-                        fontSize: 13,
+                        fontSize: 14,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
