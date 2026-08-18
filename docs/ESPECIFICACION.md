@@ -150,7 +150,12 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - **iPhone no ofrece instalación sola**: Safari no tiene `beforeinstallprompt`, así que en iOS (y solo en iOS, fuera de modo standalone) se muestra un aviso descartable con los pasos Compartir → «Añadir a pantalla de inicio». El descarte se recuerda en `localStorage`; no hay tabla nueva.
 - El *matcher* del proxy excluye `manifest.webmanifest`: es público por definición y verificar sesión ahí solo gasta.
 
-**Exportación (lámina):** botón «Exportar» en la cabecera del calendario. Genera una **lámina dedicada** —un componente aparte renderizado fuera de pantalla a resolución fija (p. ej. 1920×1080)— con la semana completa, título y leyenda de categorías, convertida a PNG en el navegador con una librería tipo `html-to-image`. La misma lámina sirve como **vista imprimible** (`@media print`, ocultando chat y paneles). El formato vertical para móvil es la variante del *Should*.
+**Exportación (lámina):** botón «Exportar» junto a las acciones de contenido del calendario. Genera una **lámina dedicada** —un componente aparte (`WeekPoster`) montado fuera de pantalla solo durante la exportación, a resolución fija 1920×1080— con la semana completa, título, fecha y leyenda de categorías, convertida a PNG en el navegador con `html-to-image` (dependencia sancionada aquí). Decisiones de la lámina:
+- **Paleta clara fija e independiente del tema elegido**: la lámina es para imprimir o de fondo de pantalla, y debe salir igual para todos; usa los colores de categoría tal como se persisten (la variante clara del muestrario) y reutiliza la geometría real del calendario (`blockGeometry`, `reminderBottoms`), así que lo exportado es lo que el usuario ve, no una segunda implementación que envejecería aparte.
+- Antes de capturar se espera a `document.fonts.ready`: sin eso el PNG puede salir con la fuente de respaldo.
+- Fichero: `rutia-semana-YYYY-MM-DD.png` con la fecha del día.
+
+La **vista imprimible** es la versión en papel de la misma idea con variantes `print:` de Tailwind: se ocultan chat, paneles, botones y pie, y queda la cabecera con la fecha, la leyenda de categorías y el calendario limpio (sin sombra ni borde) — título + leyenda + semana, como la lámina. No se imprime el nodo de 1920 px: escalarlo a papel daría peor resultado que dejar que el navegador pagine el calendario real. El formato vertical para móvil es la variante del *Should*.
 
 ---
 
