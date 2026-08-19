@@ -18,6 +18,12 @@ import { isIos, isStandalone } from '@/lib/platform'
 import type { LlmKeyStatusView } from '@/lib/llm-providers'
 import type { Category, RoutineItem } from '@/lib/schemas'
 
+// Callbacks estables para useSyncExternalStore (como en install-hint): un
+// subscribe nuevo por render forzaría re-suscripciones inútiles.
+const subscribeToNothing = () => () => {}
+const isIosStandalone = () => isIos() && isStandalone()
+const serverSaysNo = () => false
+
 // Dueño del estado de los diálogos: el calendario y la leyenda son
 // presentación pura y las escrituras van por server actions.
 type Dialog =
@@ -70,11 +76,7 @@ export function RoutineBoard({
   // Dato solo-cliente con el patrón de siempre (hidrata sin desajuste): en la
   // web app instalada de iOS la descarga con Content-Disposition no funciona
   // y el pie debe ofrecer instrucciones en vez del enlace.
-  const iosStandalone = useSyncExternalStore(
-    () => () => {},
-    () => isIos() && isStandalone(),
-    () => false,
-  )
+  const iosStandalone = useSyncExternalStore(subscribeToNothing, isIosStandalone, serverSaysNo)
 
   // Sin rutina, el chat delante: es la puerta de entrada del onboarding
   // (Must #8); con rutina, el panel «Hoy» sigue siendo la vista principal.

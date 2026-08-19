@@ -68,7 +68,7 @@ export function createChatRepo(supabase: SupabaseClient) {
       const rows = await fetchAllPages<ChatMessageRow>(1000, async (from, to) => {
         const { data, error, count } = await supabase
           .from('chat_messages')
-          .select(COLUMNS, { count: 'exact' })
+          .select(COLUMNS, { count: from === 0 ? 'exact' : undefined })
           .eq('user_id', userId)
           .order('created_at', { ascending: true })
           .order('id', { ascending: true })

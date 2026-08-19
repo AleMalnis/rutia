@@ -19,12 +19,18 @@ export function createProfilesRepo(supabase: SupabaseClient) {
       const row = data as {
         display_name: string | null
         timezone: string | null
-        preferences: Record<string, unknown> | null
+        preferences: unknown
       } | null
+      // mismo guard que getPreferences: la columna es JSON y un escalar o un
+      // array colarían un valor que no cumple el tipo declarado
+      const preferences = row?.preferences
       return {
         displayName: row?.display_name ?? null,
         timezone: row?.timezone == null || row.timezone === '' ? DEFAULT_TIMEZONE : row.timezone,
-        preferences: row?.preferences ?? {},
+        preferences:
+          typeof preferences === 'object' && preferences != null && !Array.isArray(preferences)
+            ? (preferences as Record<string, unknown>)
+            : {},
       }
     },
 

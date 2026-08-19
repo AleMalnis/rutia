@@ -36,9 +36,9 @@ export async function GET() {
     }
     userId = data.claims.sub
     email = typeof data.claims.email === 'string' ? data.claims.email : null
-  } catch (problema) {
-    const detalle = problema instanceof Error ? `${problema.name}: ${problema.message}` : String(problema)
-    console.warn(`[api/export] sesión inválida — ${detalle}`)
+  } catch (caught) {
+    const detail = caught instanceof Error ? `${caught.name}: ${caught.message}` : String(caught)
+    console.warn(`[api/export] sesión inválida — ${detail}`)
     return Response.json(
       { error: 'No hay sesión. Inicia sesión y vuelve a intentarlo.' },
       { status: 401, headers: { 'Cache-Control': 'no-store' } },
@@ -60,20 +60,23 @@ export async function GET() {
     // la fecha del nombre en el huso del PERFIL, como el resto de la app: a
     // las 23:30 en Madrid el fichero no debe llamarse como el día siguiente
     // en UTC
-    const timezone = (payload as { perfil: { zona_horaria: string } }).perfil.zona_horaria
+    const timezone = payload.perfil.zona_horaria
     const { date } = todayInTimezone(new Date(), timezone)
 
     // En streaming a propósito: las respuestas no-streaming de Vercel están
     // capadas a 4,5 MB, y la conversación se guarda completa e indefinida —
     // el usuario con más datos sería justo aquel al que le fallaría su
     // descarga RGPD. Las respuestas en streaming están exentas del tope.
-    const body = JSON.stringify(payload, null, 2)
-    const encoder = new TextEncoder()
+    //
+    // Se codifica UNA vez y se trocea por BYTES: trocear el string podría
+    // partir un par sustituto (un emoji del chat) y codificar cada mitad por
+    // separado corrompería el JSON con caracteres de reemplazo.
+    const bytes = new TextEncoder().encode(JSON.stringify(payload, null, 2))
     const CHUNK = 1 << 20
     const stream = new ReadableStream({
       start(controller) {
-        for (let i = 0; i < body.length; i += CHUNK) {
-          controller.enqueue(encoder.encode(body.slice(i, i + CHUNK)))
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          controller.enqueue(bytes.subarray(i, i + CHUNK))
         }
         controller.close()
       },
@@ -87,10 +90,10 @@ export async function GET() {
         'Cache-Control': 'no-store',
       },
     })
-  } catch (problema) {
-    const nombre = problema instanceof Error ? problema.name : 'Error'
-    const mensaje = problema instanceof Error ? problema.message : String(problema)
-    console.error('[api/export]', nombre, mensaje)
+  } catch (caught) {
+    const name = caught instanceof Error ? caught.name : 'Error'
+    const message = caught instanceof Error ? caught.message : String(caught)
+    console.error('[api/export]', name, message)
     return Response.json(
       { error: 'No se ha podido generar la descarga. Vuelve a intentarlo en un momento.' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } },

@@ -23,7 +23,7 @@ export function createCompletionsRepo(supabase: SupabaseClient) {
       const rows = await fetchAllPages<Row>(1000, async (from, to) => {
         const { data, error, count } = await supabase
           .from('completions')
-          .select('item_id, date, completed_at', { count: 'exact' })
+          .select('item_id, date, completed_at', { count: from === 0 ? 'exact' : undefined })
           .eq('user_id', userId)
           .order('date', { ascending: true })
           .order('id', { ascending: true })

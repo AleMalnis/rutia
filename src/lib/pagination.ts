@@ -29,8 +29,10 @@ export async function fetchAllPages<T>(
   // Si el Max Rows del proyecto bajara por debajo del tamaño de página, cada
   // página llegaría corta y el bucle pararía antes de tiempo creyendo haber
   // terminado. Mejor fallar ruidosamente que exportar un fichero incompleto
-  // que dice ser completo.
-  if (expected != null && rows.length !== expected) {
+  // que dice ser completo. Solo con `<`: filas AÑADIDAS durante la paginación
+  // (el chat sigue escribiendo) hacen llegar más de las contadas al inicio,
+  // y eso no es una lectura incompleta.
+  if (expected != null && rows.length < expected) {
     throw new Error(
       `Lectura incompleta: se esperaban ${expected} filas y llegaron ${rows.length}. ` +
         'Revisa el ajuste Max Rows del proyecto de Supabase.',

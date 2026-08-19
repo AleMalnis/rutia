@@ -89,7 +89,7 @@ describe('ExportService.buildExport', () => {
   })
 
   it('exporta TODO lo prometido por la política: perfil, rutina con notas, checks y conversación', async () => {
-    const data = (await mkService().buildExport(USER, 'ale@ejemplo.com', NOW)) as Record<string, never>
+    const data = await mkService().buildExport(USER, 'ale@ejemplo.com', NOW)
     expect(data.formato).toBe('rutia-export')
     expect(data.cuenta).toEqual({ correo: 'ale@ejemplo.com' })
     expect(data.exportado_en).toBe('2026-08-19T10:00:00.000Z')

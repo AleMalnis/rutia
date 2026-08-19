@@ -30,11 +30,9 @@ export type ExportDeps = {
 
 export function createExportService(deps: ExportDeps) {
   return {
-    async buildExport(
-      userId: string,
-      email: string | null,
-      now: Date,
-    ): Promise<Record<string, unknown>> {
+    // el tipo se INFIERE: así la ruta ve perfil.zona_horaria tipado y no
+    // necesita ningún cast sobre el payload
+    async buildExport(userId: string, email: string | null, now: Date) {
       const [profile, categories, items, completions, conversation, llm] = await Promise.all([
         deps.profiles.getProfile(userId),
         deps.categories.listByUser(userId),
