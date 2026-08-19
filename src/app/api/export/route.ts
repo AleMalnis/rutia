@@ -37,8 +37,10 @@ export async function GET() {
     userId = data.claims.sub
     email = typeof data.claims.email === 'string' ? data.claims.email : null
   } catch (caught) {
-    const detail = caught instanceof Error ? `${caught.name}: ${caught.message}` : String(caught)
-    console.warn(`[api/export] sesión inválida — ${detail}`)
+    // solo la CLASE del error: el mensaje puede incrustar material del token
+    // (un error de parseo arrastra trozos de la cookie que lo provocó)
+    const name = caught instanceof Error ? caught.name : 'UnknownError'
+    console.warn(`[api/export] sesión inválida — ${name}`)
     return Response.json(
       { error: 'No hay sesión. Inicia sesión y vuelve a intentarlo.' },
       { status: 401, headers: { 'Cache-Control': 'no-store' } },
