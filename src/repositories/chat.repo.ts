@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { fetchAllPages } from '@/lib/pagination'
 import { RepoError } from '@/repositories/items.repo'
 
 // Repositorio de chat_messages (spec §5): historial de la conversación con el
@@ -53,6 +54,29 @@ export function createChatRepo(supabase: SupabaseClient) {
         .single()
       if (error) throw new RepoError(error.message, error.code)
       return toMessage(data as ChatMessageRow)
+    },
+
+    /**
+     * La conversación ENTERA, para la exportación de datos (§12.13): la
+     * política de privacidad dice que se guarda completa e indefinida, así que
+     * el export debe devolverla completa — un export parcial desmentiría a la
+     * política justo en lo que promete. Paginada porque PostgREST corta en
+     * Max Rows (1000) sin error; el desempate por id hace el orden estable
+     * entre páginas.
+     */
+    async listAll(userId: string): Promise<ChatMessage[]> {
+      const rows = await fetchAllPages<ChatMessageRow>(1000, async (from, to) => {
+        const { data, error, count } = await supabase
+          .from('chat_messages')
+          .select(COLUMNS, { count: from === 0 ? 'exact' : undefined })
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+        if (error) throw new RepoError(error.message, error.code)
+        return { rows: data as ChatMessageRow[], count }
+      })
+      return rows.map(toMessage)
     },
 
     /** Los últimos N mensajes, en orden cronológico (el más antiguo primero). */

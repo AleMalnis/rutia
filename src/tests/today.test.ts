@@ -123,6 +123,9 @@ describe('RoutineService: hoy y completado', () => {
       },
     }
     const completions: CompletionsRepo = {
+      async listAllByUser() {
+        throw new Error('no usado')
+      },
       async listItemIdsByDate() {
         return [...marked]
       },
@@ -138,6 +141,9 @@ describe('RoutineService: hoy y completado', () => {
       },
     }
     const profiles: ProfilesRepo = {
+      async getProfile() {
+        throw new Error('no usado')
+      },
       async getTimezone() {
         return zone
       },

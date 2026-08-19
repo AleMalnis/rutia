@@ -6,6 +6,34 @@ import { RepoError } from '@/repositories/items.repo'
 
 export function createProfilesRepo(supabase: SupabaseClient) {
   return {
+    /** El perfil entero de una vez, para la exportación de datos (§12.13). */
+    async getProfile(
+      userId: string,
+    ): Promise<{ displayName: string | null; timezone: string; preferences: Record<string, unknown> }> {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('display_name, timezone, preferences')
+        .eq('id', userId)
+        .maybeSingle()
+      if (error) throw new RepoError(error.message, error.code)
+      const row = data as {
+        display_name: string | null
+        timezone: string | null
+        preferences: unknown
+      } | null
+      // mismo guard que getPreferences: la columna es JSON y un escalar o un
+      // array colarían un valor que no cumple el tipo declarado
+      const preferences = row?.preferences
+      return {
+        displayName: row?.display_name ?? null,
+        timezone: row?.timezone == null || row.timezone === '' ? DEFAULT_TIMEZONE : row.timezone,
+        preferences:
+          typeof preferences === 'object' && preferences != null && !Array.isArray(preferences)
+            ? (preferences as Record<string, unknown>)
+            : {},
+      }
+    },
+
     async getTimezone(userId: string): Promise<string> {
       const { data, error } = await supabase
         .from('profiles')

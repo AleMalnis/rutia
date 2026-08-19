@@ -58,11 +58,11 @@ export async function updateSession(request: NextRequest) {
     const { data } = await supabase.auth.getClaims()
     isAuthenticated = data?.claims != null
   } catch (error) {
-    // Solo nombre y mensaje: el error crudo puede arrastrar a los logs el
-    // stack o fragmentos del token de la cookie que lo provocó.
-    const detalle =
-      error instanceof Error ? `${error.name}: ${error.message}` : String(error)
-    console.warn(`proxy: fallo al refrescar la sesión — ${detalle}`)
+    // Solo la CLASE del error: también el mensaje puede arrastrar fragmentos
+    // del token (un error de parseo incrusta trozos de la cookie que lo
+    // provocó), no solo el stack.
+    const name = error instanceof Error ? error.name : 'UnknownError'
+    console.warn(`proxy: fallo al refrescar la sesión — ${name}`)
   }
 
   // Protección de /app (spec §4): sin sesión, a /login. Es la comprobación

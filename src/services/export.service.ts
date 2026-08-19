@@ -1,0 +1,91 @@
+import type { ChatRepo } from '@/repositories/chat.repo'
+import type { CategoriesRepo } from '@/repositories/categories.repo'
+import type { CompletionsRepo } from '@/repositories/completions.repo'
+import type { ItemsRepo } from '@/repositories/items.repo'
+import type { LlmSettingsRepo } from '@/repositories/llm-settings.repo'
+import type { ProfilesRepo } from '@/repositories/profiles.repo'
+
+// Exportación de datos (spec §12.13, RGPD art. 15 y 20): TODO lo del usuario
+// en un JSON, ensamblado aquí para que sea testeable sin red. Claves en
+// español: el destinatario es el usuario (el modo MCP usa su propia
+// serialización, pensada para el modelo del cliente).
+//
+// Lo que NO va, a propósito (documentado también en la política, apartado 9):
+// - La clave de API — ni cifrada. Un blob cifrado es inútil fuera del servidor
+//   (el secreto no viaja), así que no es un dato del usuario: es una tentación
+//   de soporte. Se exporta solo el proveedor elegido.
+// - Las fechas técnicas de registro/inicios de sesión y los grants OAuth del
+//   modo MCP: viven en el schema auth de Supabase, fuera del alcance de la
+//   sesión del propio usuario. El correo sí va: llega en los claims y es el
+//   dato ancla de la cuenta.
+
+export type ExportDeps = {
+  profiles: ProfilesRepo
+  categories: CategoriesRepo
+  items: ItemsRepo
+  completions: CompletionsRepo
+  chat: ChatRepo
+  llmSettings: LlmSettingsRepo
+}
+
+export function createExportService(deps: ExportDeps) {
+  return {
+    // el tipo se INFIERE: así la ruta ve perfil.zona_horaria tipado y no
+    // necesita ningún cast sobre el payload
+    async buildExport(userId: string, email: string | null, now: Date) {
+      const [profile, categories, items, completions, conversation, llm] = await Promise.all([
+        deps.profiles.getProfile(userId),
+        deps.categories.listByUser(userId),
+        deps.items.listByUser(userId),
+        deps.completions.listAllByUser(userId),
+        deps.chat.listAll(userId),
+        deps.llmSettings.get(userId),
+      ])
+
+      return {
+        formato: 'rutia-export',
+        version: 1,
+        exportado_en: now.toISOString(),
+        cuenta: { correo: email },
+        perfil: {
+          nombre: profile.displayName,
+          zona_horaria: profile.timezone,
+          preferencias: profile.preferences,
+        },
+        categorias: categories.map((category) => ({
+          id: category.id,
+          nombre: category.name,
+          color: category.color,
+        })),
+        rutina: items.map((item) => ({
+          id: item.id,
+          tipo: item.kind,
+          dias: item.days,
+          inicio: item.start,
+          fin: item.end,
+          titulo: item.title,
+          categoria_id: item.categoryId,
+          detalle: item.detail,
+          notas: item.notes,
+          creado_en: item.createdAt,
+          actualizado_en: item.updatedAt,
+        })),
+        completados: completions.map((completion) => ({
+          item_id: completion.itemId,
+          fecha: completion.date,
+          completado_en: completion.completedAt,
+        })),
+        conversacion: conversation.map((message) => ({
+          rol: message.role,
+          contenido: message.content,
+          herramientas: message.toolCalls,
+          fecha: message.createdAt,
+        })),
+        // solo el proveedor: la clave no sale del servidor en ninguna forma
+        ajustes_ia: llm == null ? null : { proveedor: llm.provider },
+      }
+    },
+  }
+}
+
+export type ExportService = ReturnType<typeof createExportService>

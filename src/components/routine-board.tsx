@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AppearanceDialog } from '@/components/appearance-dialog'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
@@ -14,8 +14,15 @@ import { PanelTab } from '@/components/panel-tab'
 import { TodayPanel, type TodayEntry } from '@/components/today-panel'
 import { WeekCalendar } from '@/components/week-calendar'
 import type { Appearance } from '@/lib/appearance'
+import { isIos, isStandalone } from '@/lib/platform'
 import type { LlmKeyStatusView } from '@/lib/llm-providers'
 import type { Category, RoutineItem } from '@/lib/schemas'
+
+// Callbacks estables para useSyncExternalStore (como en install-hint): un
+// subscribe nuevo por render forzaría re-suscripciones inútiles.
+const subscribeToNothing = () => () => {}
+const isIosStandalone = () => isIos() && isStandalone()
+const serverSaysNo = () => false
 
 // Dueño del estado de los diálogos: el calendario y la leyenda son
 // presentación pura y las escrituras van por server actions.
@@ -65,6 +72,11 @@ export function RoutineBoard({
 }) {
   const [dialog, setDialog] = useState<Dialog>(null)
   const router = useRouter()
+
+  // Dato solo-cliente con el patrón de siempre (hidrata sin desajuste): en la
+  // web app instalada de iOS la descarga con Content-Disposition no funciona
+  // y el pie debe ofrecer instrucciones en vez del enlace.
+  const iosStandalone = useSyncExternalStore(subscribeToNothing, isIosStandalone, serverSaysNo)
 
   // Sin rutina, el chat delante: es la puerta de entrada del onboarding
   // (Must #8); con rutina, el panel «Hoy» sigue siendo la vista principal.
@@ -321,13 +333,25 @@ export function RoutineBoard({
         {/* los legales al pie (spec §4): la cabecera es la posición de máxima
             jerarquía y esto es lo de menor uso. Dentro del contenedor inert,
             como el resto, para quedar cubiertos cuando hay un diálogo. */}
-        <footer className="flex gap-4 text-xs text-ink-3 print:hidden">
+        <footer className="flex flex-wrap gap-4 text-xs text-ink-3 print:hidden">
           <Link href="/legal/privacidad" className="underline hover:text-ink-2">
             Privacidad
           </Link>
           <Link href="/legal/terminos" className="underline hover:text-ink-2">
             Términos
           </Link>
+          {/* portabilidad RGPD (spec §12.13): un <a> normal — el servidor pone
+              el Content-Disposition y el navegador gestiona la descarga. En la
+              web app instalada de iOS no hay gestor de descargas y el toque
+              acaba en una pantalla trampa, así que ahí se dan instrucciones
+              en vez de un enlace que parece roto. */}
+          {iosStandalone ? (
+            <span>Para descargar tus datos, abre RutIA en Safari: la app instalada no puede guardar ficheros</span>
+          ) : (
+            <a href="/api/export" className="underline hover:text-ink-2">
+              Descargar mis datos
+            </a>
+          )}
         </footer>
       </div>
 
