@@ -166,7 +166,8 @@ export default function TerminosPage() {
       <p>
         Puedes dejar de usar RutIA cuando quieras y borrar tu cuenta tú mismo desde «Borrar mi
         cuenta», al pie del calendario: se elimina de inmediato todo lo asociado, sin vuelta
-        atrás. Si lo prefieres, también puedes pedirlo escribiendo a{' '}
+        atrás (única excepción: la cuenta de demostración pública, que es del responsable y no
+        puede borrarse desde la app). Si lo prefieres, también puedes pedirlo escribiendo a{' '}
         <a href={`mailto:${CONTACTO}`}>{CONTACTO}</a>. Por nuestra parte,
         una cuenta solo se suspende o elimina si incumple el apartado 7, y se te comunicará el
         motivo salvo que hacerlo sea inviable.

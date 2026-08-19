@@ -375,6 +375,11 @@ export async function deleteAccount(confirmation: unknown): Promise<DeleteAccoun
 
   const { error } = await context.supabase.rpc('delete_my_account')
   if (error) {
+    // errcode propio de la migración 0006: la cuenta de demostración está
+    // blindada (su contraseña es compartida) y merece un mensaje claro
+    if (error.code === 'PDEMO') {
+      return { status: 'error', message: 'La cuenta de demostración no se puede borrar.' }
+    }
     // código y nombre, nunca el mensaje crudo: misma política que el resto
     console.error(`deleteAccount: ${error.code ?? error.name ?? 'error'}`)
     return {

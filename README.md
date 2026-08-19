@@ -26,6 +26,17 @@ npm run dev
 Necesitas un proyecto de [Supabase](https://supabase.com) (la capa gratuita basta). Ejecuta las
 migraciones de `supabase/migrations/` **en orden numérico** desde el SQL Editor del dashboard.
 
+**Cuenta de demostración (opcional):** crea un usuario en Authentication → Add user (con *Auto
+Confirm*), ajusta el correo en la cabecera de [`supabase/seed_demo_user.sql`](supabase/seed_demo_user.sql)
+si usaste otro, y ejecuta ese fichero en el SQL Editor (necesita la migración 0006, que además
+blinda la cuenta: ni borrarla ni cambiarle la contraseña o el correo). Siembra una semana realista
+con completados recientes. Es re-ejecutable y conviene hacerlo **tras cada sesión de evaluación**:
+restaura los datos y elimina lo que el evaluador anterior dejara — incluida su clave de API y su
+conversación, que en una cuenta compartida quedan a la vista del siguiente. Para cambiar la
+contraseña de la demo legítimamente: quita la marca en el SQL Editor
+(`update auth.users set raw_app_meta_data = raw_app_meta_data - 'demo' where email = '…'`),
+cámbiala en el dashboard y re-ejecuta el seed.
+
 Variables de entorno: están documentadas una a una en [`.env.example`](.env.example). Ninguna clave
 secreta lleva el prefijo `NEXT_PUBLIC_`.
 

@@ -41,7 +41,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 ## 2. Alcance (MoSCoW)
 
 ### Must — el corazón de la v1
-1. Registro e inicio de sesión con email y contraseña (Supabase Auth) + **usuario de prueba** con rutina precargada.
+1. Registro e inicio de sesión con email y contraseña (Supabase Auth) + **usuario de prueba** con rutina precargada (cuenta de demostración: ver §4).
 2. Vista de **calendario semanal** (lunes–domingo × horas) con bloques coloreados por categoría y **chips** para los recordatorios puntuales.
 3. Ítems con **recurrencia multi-día** (`days[]`): un solo ítem puede vivir en varios días («todos los días», «L-V»).
 4. **CRUD manual básico** de ítems desde la UI (crear, editar, borrar) como alternativa al chat.
@@ -158,6 +158,14 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - Fichero: `rutia-semana-YYYY-MM-DD.png` (la variante oscura añade `-oscura`).
 
 La **vista imprimible** es la versión en papel de la misma idea con variantes `print:` de Tailwind: se ocultan chat, paneles, botones y pie, y queda la cabecera con la fecha, la leyenda de categorías y el calendario limpio (sin sombra ni borde) — título + leyenda + semana, como la lámina. No se imprime el nodo de 1920 px: escalarlo a papel daría peor resultado que dejar que el navegador pagine el calendario real. El formato vertical para móvil es la variante del *Should*.
+
+**Cuenta de demostración (Must #1, «usuario de prueba con rutina precargada»):** una cuenta real en el Supabase del despliegue, no un modo especial de la app — cero código condicional en la UI. Decisiones:
+- **Alta manual + seed re-ejecutable**: el usuario se crea a mano en el dashboard (Authentication → Add user, con *Auto Confirm*; el SQL no tiene vía soportada para dar de alta usuarios con contraseña) y `supabase/seed_demo_user.sql` lo puebla desde el SQL Editor. El seed **no es una migración**: cada ejecución borra todo el contenido del usuario demo (rutina, categorías, completados, conversación, ajuste de IA, snapshots) y lo recrea idéntico — re-ejecutarlo restaura la demo si quien evalúa la desordena. El correo se edita en la cabecera del fichero, mismo patrón que la URL en 0004.
+- **Marca en `raw_app_meta_data` (`demo: true`)**, no en `user_metadata`: los metadatos de usuario se los puede editar el propio usuario con `auth.updateUser()`, y una marca de protección que el protegido puede quitarse no protege nada.
+- **Blindada contra el borrado y el secuestro (migración 0006)**: la contraseña es compartida por definición, así que cualquiera podría pulsar «Borrar mi cuenta» y destruir la demo para el siguiente — `delete_my_account()` rechaza la cuenta marcada con el errcode propio `PDEMO`, que la server action traduce a un mensaje claro en vez del genérico (de regalo, quien evalúa recorre el flujo de borrado entero sin romper nada). Y la misma `auth.updateUser()` que motivó elegir `app_metadata` también cambia **contraseña y correo sin pedir la contraseña actual**: quien entrase podría secuestrar la demo para todos los demás, y el seed solo restaura datos, nunca credenciales («Secure password change» no basta: GoTrue omite la reautenticación en sesiones de menos de 24 h). Un trigger sobre `auth.users` rechaza esos cambios en la cuenta marcada, comparando valores y no columnas para no dispararse en los updates rutinarios del login. Recuperación legítima (el trigger no distingue al dashboard de GoTrue — ambos son `supabase_auth_admin`): quitar la marca en el SQL Editor, cambiar la contraseña y re-ejecutar el seed, que re-marca.
+- **Sin clave de API precargada**: el calendario, el panel Hoy, el export y la lámina se demuestran igual; el chat enseña su estado vacío con los dos caminos reales (clave propia o MCP), que es exactamente la primera experiencia de un usuario de verdad. Coste cero. Si quien evalúa pega su propia clave para probar el chat, esa clave —y su conversación— queda en la cuenta compartida hasta el siguiente seed, que borra ambas: re-ejecutarlo tras cada sesión de evaluación es parte del uso previsto.
+- **Rutina realista, sin solapes y que no envejece**: ~15 ítems que cubren bloques y recordatorios, multi-día, fin de semana, detalle y notas, con las 8 categorías por defecto. La regla de no-solape vive en el servicio, no en la BD, así que el seed la respeta a mano. Los completados se calculan al ejecutar el seed —los últimos 3 días, solo en ítems programados ese día de la semana— de modo que la demo siempre parece usada *esta* semana; se dejan sin marcar «Gimnasio» y «Leer 20 minutos» para que parezca humana.
+- **Sin conversación sembrada**: fabricar un diálogo que el asistente nunca dijo es enseñar algo falso; el chat vacío con su saludo es el estado honesto.
 
 ---
 
