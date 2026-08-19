@@ -27,7 +27,17 @@ export async function GET() {
   let userId: string
   let email: string | null
   try {
-    const { data } = await supabase.auth.getClaims()
+    const { data, error } = await supabase.auth.getClaims()
+    // un fallo RECUPERABLE de la dependencia (JWKS o Auth caídos) no es «no
+    // tienes sesión»: decirle al usuario que inicie sesión cuando lo roto es
+    // el servicio sería mentirle; que reintente en un momento
+    if (error != null && data == null && error.name === 'AuthRetryableFetchError') {
+      console.error('[api/export]', error.name)
+      return Response.json(
+        { error: 'No se ha podido verificar la sesión. Vuelve a intentarlo en un momento.' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      )
+    }
     if (data == null || typeof data.claims.sub !== 'string') {
       return Response.json(
         { error: 'No hay sesión. Inicia sesión y vuelve a intentarlo.' },
@@ -57,13 +67,16 @@ export async function GET() {
       llmSettings: createLlmSettingsRepo(supabase),
     })
 
-    const payload = await service.buildExport(userId, email, new Date())
+    // UN solo instante para el contenido y el nombre: con dos new Date(), un
+    // export que cruce la medianoche llevaría fechas distintas dentro y fuera
+    const now = new Date()
+    const payload = await service.buildExport(userId, email, now)
 
     // la fecha del nombre en el huso del PERFIL, como el resto de la app: a
     // las 23:30 en Madrid el fichero no debe llamarse como el día siguiente
     // en UTC
     const timezone = payload.perfil.zona_horaria
-    const { date } = todayInTimezone(new Date(), timezone)
+    const { date } = todayInTimezone(now, timezone)
 
     // En streaming a propósito: las respuestas no-streaming de Vercel están
     // capadas a 4,5 MB, y la conversación se guarda completa e indefinida —

@@ -12,6 +12,14 @@ export type Page<T> = {
   count: number | null
 }
 
+// Paginación por OFFSET a sabiendas: con escrituras concurrentes, un insert
+// anterior al cursor duplicaría una fila de frontera. Aquí no puede pasar:
+// las dos fuentes insertan siempre AL FINAL de su orden (los mensajes con
+// created_at de ahora; los completados con la fecha de HOY del servidor,
+// spec §6.2). Un borrado concurrente sí desplaza — y salta una fila —, pero
+// eso lo detecta la red de seguridad de abajo como fallo ruidoso y el export
+// se reintenta. Cursor o dedup por clave serían resolver un caso que el
+// diseño de escrituras ya impide.
 export async function fetchAllPages<T>(
   pageSize: number,
   fetchPage: (from: number, to: number) => Promise<Page<T>>,
