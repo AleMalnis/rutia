@@ -37,6 +37,9 @@ function mkDeps(initialPreferences: Record<string, unknown> = {}) {
     },
   }
   const completions: CompletionsRepo = {
+    async listAllByUser() {
+      throw new Error('no usado')
+    },
     async listItemIdsByDate() {
       return []
     },
@@ -48,6 +51,9 @@ function mkDeps(initialPreferences: Record<string, unknown> = {}) {
     },
   }
   const profiles: ProfilesRepo = {
+    async getProfile() {
+      throw new Error('no usado')
+    },
     async getTimezone() {
       return 'Europe/Madrid'
     },

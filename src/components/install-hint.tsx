@@ -1,37 +1,16 @@
 'use client'
 
 import { useState, useSyncExternalStore } from 'react'
+import { isIos, isStandalone } from '@/lib/platform'
 
 // Aviso de instalación para iPhone/iPad (spec §4): Safari no tiene
 // `beforeinstallprompt`, así que la única forma de que el usuario sepa que
 // RutIA se instala es decírselo. Solo aparece en iOS y fuera del modo
 // standalone (instalada ya no tiene sentido); en Android no se pinta nada
-// porque Chrome ofrece su propia instalación.
+// porque Chrome ofrece su propia instalación. La detección vive en
+// lib/platform.ts, compartida con el pie del tablero.
 
 const DISMISS_KEY = 'rutia-install-hint-dismissed'
-
-function isIos(): boolean {
-  // iPadOS se hace pasar por macOS desde hace años: se detecta por el táctil.
-  //
-  // El token «Safari/» filtra los navegadores in-app (Gmail, Instagram…):
-  // son WKWebView cuya hoja de compartir NO tiene «Añadir a pantalla de
-  // inicio», así que ahí el aviso daría una instrucción imposible. Safari y
-  // los navegadores completos de terceros (CriOS, FxiOS, EdgiOS) sí lo llevan
-  // y sí pueden instalar desde iOS 16.4. Falso positivo residual conocido:
-  // SFSafariViewController usa el UA exacto de Safari y no es filtrable.
-  const ua = navigator.userAgent
-  const ios = /iPhone|iPod/.test(ua) || (/iPad|Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
-  return ios && /Safari\//.test(ua) && !/\b(GSA|FBAN|FBAV|Instagram)\b/.test(ua)
-}
-
-function isStandalone(): boolean {
-  // `navigator.standalone` es la señal histórica de Safari; la media query es
-  // la estándar. Cualquiera de las dos vale.
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    ('standalone' in navigator && (navigator as { standalone?: boolean }).standalone === true)
-  )
-}
 
 // El aviso depende de datos que solo existen en el cliente (user agent,
 // display-mode, localStorage). useSyncExternalStore es el patrón para eso:

@@ -226,8 +226,19 @@ export default function PrivacidadPage() {
           borrar cualquier ítem, o el texto de un detalle, tiene efecto inmediato.
         </li>
         <li>
-          <strong>Acceso, portabilidad y borrado de la cuenta</strong> se atienden por correo, porque
-          todavía no hay una pantalla que lo haga sola (apartado 11).
+          <strong>Acceso y portabilidad</strong> son autoservicio: el enlace «Descargar mis datos»
+          al pie de tu calendario baja un fichero JSON con todo lo tuyo — tu correo, el perfil,
+          las categorías, la rutina completa con sus notas, el historial de completados, la
+          conversación entera y el proveedor de IA elegido. Tres cosas no van en el fichero: la
+          clave de API (no sale del servidor en ninguna forma), y las fechas técnicas de
+          registro/inicios de sesión y los accesos del modo MCP, que gestiona el servicio de
+          autenticación de Supabase — si los necesitas, pídelos por correo. En la app instalada
+          de iPhone/iPad la descarga debe hacerse desde Safari: la app instalada no puede guardar
+          ficheros.
+        </li>
+        <li>
+          <strong>El borrado de la cuenta</strong> se atiende por correo, porque todavía no hay una
+          pantalla que lo haga sola (apartado 11).
         </li>
         <li>
           <strong>Revocar el acceso de un cliente MCP:</strong> hoy se hace desde el propio cliente
@@ -263,7 +274,7 @@ export default function PrivacidadPage() {
           No hay un consentimiento explícito e independiente para los datos de salud, con su propio
           registro: hoy se apoya en que los aportas voluntariamente.
         </li>
-        <li>No hay exportación ni borrado de la cuenta desde la app; se atienden por correo.</li>
+        <li>No hay borrado de la cuenta desde la app; se atiende por correo.</li>
         <li>No hay pantalla propia para revocar los accesos del modo MCP.</li>
         <li>
           El acceso del modo MCP no está acotado por permisos: como se explica en el apartado 5, el

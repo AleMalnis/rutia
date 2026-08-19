@@ -108,6 +108,9 @@ function mkDeps(initialItems: RoutineItem[] = [], categories: Category[] = []) {
   const items = mkItemsRepo(initialItems)
   const marked = new Set<string>()
   const completions: CompletionsRepo = {
+    async listAllByUser() {
+      throw new Error('no usado')
+    },
     async listItemIdsByDate() {
       return [...marked]
     },
@@ -121,6 +124,9 @@ function mkDeps(initialItems: RoutineItem[] = [], categories: Category[] = []) {
     },
   }
   const profiles: ProfilesRepo = {
+    async getProfile() {
+      throw new Error('no usado')
+    },
     async getTimezone() {
       return 'Europe/Madrid'
     },
@@ -167,6 +173,9 @@ function mkChatRepo(recentUserCount = 0, history: ChatMessage[] = []) {
         toolCalls: message.toolCalls ?? null,
         createdAt: NOW.toISOString(),
       } satisfies ChatMessage
+    },
+    async listAll() {
+      throw new Error('no usado')
     },
     async listRecent() {
       return history
