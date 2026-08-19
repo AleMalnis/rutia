@@ -238,6 +238,10 @@ export function categoryUpdateSchema(currentColor: string) {
 
 export type CategoryInput = z.infer<typeof categoryInputSchema>
 
+// Confirmación del borrado de cuenta (spec §12.13): exactamente «BORRAR».
+// El diálogo ya la exige, pero una server action es invocable sin la UI.
+export const deleteAccountConfirmationSchema = z.literal('BORRAR')
+
 // Entidad completa tal y como sale del repositorio. El user_id no viaja en la
 // entidad: lo pone siempre el servidor desde la sesión (spec §6.2).
 export type RoutineItem = {

@@ -1,10 +1,10 @@
 'use server'
 
-import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { SecretConfigError } from '@/lib/crypto'
 import { parseItemForm } from '@/lib/item-form'
+import { deleteAccountConfirmationSchema } from '@/lib/schemas'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
@@ -365,7 +365,7 @@ export type DeleteAccountState = null | { status: 'error'; message: string }
  * diálogo ya la exige, pero una server action es invocable sin la UI.
  */
 export async function deleteAccount(confirmation: unknown): Promise<DeleteAccountState> {
-  const parsed = z.literal('BORRAR').safeParse(confirmation)
+  const parsed = deleteAccountConfirmationSchema.safeParse(confirmation)
   if (!parsed.success) {
     return { status: 'error', message: 'Escribe BORRAR (en mayúsculas) para confirmar.' }
   }
