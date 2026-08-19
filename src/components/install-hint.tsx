@@ -59,7 +59,7 @@ export function InstallHint() {
   return (
     <aside
       role="note"
-      className="flex items-start justify-between gap-3 rounded-xl border border-edge bg-card px-3 py-2.5 text-sm text-ink"
+      className="flex items-start justify-between gap-3 rounded-xl border border-edge bg-card px-3 py-2.5 text-sm text-ink print:hidden"
     >
       <p>
         <strong className="font-semibold">Instala RutIA en tu iPhone o iPad:</strong> toca

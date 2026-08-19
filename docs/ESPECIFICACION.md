@@ -63,7 +63,8 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - **Deshacer** el último cambio del agente (snapshot previo de la rutina).
 - **Cumplimiento semanal** simple por ítem (p. ej. «Medicación: 6/7 esta semana») y rachas básicas.
 - Insights por chat: «¿cuántas horas dedico a estudio?», equilibrio de la semana.
-- Export en **formato vertical para móvil** (agenda por días, tamaño de fondo de pantalla) y elección de tema claro/oscuro de la lámina.
+- Export en **formato vertical para móvil** (agenda por días, tamaño de fondo de pantalla).
+- ~~Elección de tema claro/oscuro de la lámina~~ → **implementada** al construir el Must #13 (ver §4): el botón «Exportar» ofrece lámina clara u oscura, y la lámina usa el tema de superficie del usuario.
 - Acciones rápidas: duplicar día, limpiar semana.
 
 ### Could — extras si sobra tiempo
@@ -150,7 +151,13 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 - **iPhone no ofrece instalación sola**: Safari no tiene `beforeinstallprompt`, así que en iOS (y solo en iOS, fuera de modo standalone) se muestra un aviso descartable con los pasos Compartir → «Añadir a pantalla de inicio». El descarte se recuerda en `localStorage`; no hay tabla nueva.
 - El *matcher* del proxy excluye `manifest.webmanifest`: es público por definición y verificar sesión ahí solo gasta.
 
-**Exportación (lámina):** botón «Exportar» en la cabecera del calendario. Genera una **lámina dedicada** —un componente aparte renderizado fuera de pantalla a resolución fija (p. ej. 1920×1080)— con la semana completa, título y leyenda de categorías, convertida a PNG en el navegador con una librería tipo `html-to-image`. La misma lámina sirve como **vista imprimible** (`@media print`, ocultando chat y paneles). El formato vertical para móvil es la variante del *Should*.
+**Exportación (lámina):** botón «Exportar» junto a las acciones de contenido del calendario. Genera una **lámina dedicada** —un componente aparte (`WeekPoster`) montado fuera de pantalla solo durante la exportación, a resolución fija 1920×1080— con la semana completa, título, fecha y leyenda de categorías, convertida a PNG en el navegador con `html-to-image` (dependencia sancionada aquí). Decisiones de la lámina:
+- **La lámina lleva TUS colores y TU fuente** (decisión del usuario, sustituye a la paleta fija de la primera versión): usa el tema de superficie elegido en Apariencia —vía las mismas variables CSS del sistema de temas, forzando `data-theme`/`data-mode` en su raíz— y al exportar se elige **clara u oscura** (el Should «elección de tema claro/oscuro», promovido aquí). Los colores de categoría resuelven su par claro/oscuro validado **localmente con la prop `mode`** (`categoryColorStyle` + una variable inline por elemento), no con la clase `cat-mark`: esa clase mira ancestros `[data-mode]` y la lámina vive anidada dentro del `main` de la app — exportar lámina clara con la app en oscuro heredaría el modo equivocado. Reutiliza la geometría real del calendario (`blockGeometry`, `reminderBottoms`): lo exportado es lo que el usuario ve, no una segunda implementación que envejecería aparte.
+- **Tipografía a escala del lienzo y adaptativa a la altura del bloque**: la pantalla se mira de cerca y con zoom a mano; la lámina se ve a distancia —fondo de pantalla, papel en la nevera— y al ser estática puede hacer lo que en pantalla no: dimensionar cada título según el espacio real de su bloque. Bloques de ≥1 h (≥48 px): título 19 px y detalle 15 px con más aire; bloques cortos: 14/13 px para no cortarse (un bloque de 30 min mide 24 px). Horas 15 px, cabeceras de día 15 px, chips 14 px (conservan su caja de 20 px: el apilado de `reminderBottoms` asume esa altura), título 42 px, subtítulo 18 px, leyenda 16 px.
+- Antes de capturar se espera a `document.fonts.ready`: sin eso el PNG puede salir con la fuente de respaldo.
+- Fichero: `rutia-semana-YYYY-MM-DD.png` (la variante oscura añade `-oscura`).
+
+La **vista imprimible** es la versión en papel de la misma idea con variantes `print:` de Tailwind: se ocultan chat, paneles, botones y pie, y queda la cabecera con la fecha, la leyenda de categorías y el calendario limpio (sin sombra ni borde) — título + leyenda + semana, como la lámina. No se imprime el nodo de 1920 px: escalarlo a papel daría peor resultado que dejar que el navegador pagine el calendario real. El formato vertical para móvil es la variante del *Should*.
 
 ---
 

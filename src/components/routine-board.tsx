@@ -7,6 +7,7 @@ import { AppearanceDialog } from '@/components/appearance-dialog'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ChatPanel, type ChatUiMessage } from '@/components/chat-panel'
+import { ExportButton } from '@/components/export-button'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { LlmSettingsDialog } from '@/components/llm-settings-dialog'
 import { PanelTab } from '@/components/panel-tab'
@@ -162,7 +163,7 @@ export function RoutineBoard({
             Pegajosa solo desde sm: en un móvil envuelve en dos filas y son
             ~105 px (16 % de la pantalla) confiscados durante todo el scroll;
             ahí se desplaza con el contenido y el calendario recupera el alto. */}
-        <header className="-mx-4 -mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-edge/60 bg-page/80 px-4 py-3 backdrop-blur sm:sticky sm:top-0 sm:z-40 md:-mx-6 md:-mt-6 md:px-6">
+        <header className="-mx-4 -mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-edge/60 bg-page/80 px-4 py-3 backdrop-blur sm:sticky sm:top-0 sm:z-40 md:-mx-6 md:-mt-6 md:px-6 print:static print:border-0 print:bg-transparent print:backdrop-blur-none">
           {identity}
           {/* Cúmulo de utilidades, arriba a la derecha como toda app: ajustes
               de app (IA, Apariencia) y, tras el separador, la sesión. Son
@@ -171,7 +172,7 @@ export function RoutineBoard({
               envolver, una línea con un solo elemento lo alinea a la
               izquierda y los ajustes acababan bajo la fecha, leyéndose como
               parte de ella. */}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1 print:hidden">
             <button
               type="button"
               onClick={() => open({ type: 'ia' })}
@@ -196,9 +197,11 @@ export function RoutineBoard({
         {/* Barra de contenido (spec §4, tanda 3): las acciones que tocan la
             rutina viven JUNTAS y junto a lo que gobiernan — antes «Nuevo
             ítem» convivía con los ajustes y «Categorías» estaba en la otra
-            punta, agrupación por azar que la ley de proximidad castiga. */}
+            punta, agrupación por azar que la ley de proximidad castiga.
+            Al imprimir, los botones sobran y la leyenda se queda: es parte de
+            la lámina de papel (título + leyenda + semana, spec §4). */}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 print:hidden">
             <button
               ref={newItemButton}
               type="button"
@@ -214,6 +217,13 @@ export function RoutineBoard({
             >
               Categorías
             </button>
+            <ExportButton
+              items={items}
+              categories={categories}
+              date={todayDate}
+              weekday={todayWeekday}
+              theme={appearance.theme}
+            />
           </div>
           <CategoryLegend categories={categories} />
         </div>
@@ -226,7 +236,7 @@ export function RoutineBoard({
               alinea el borde de la columna con el borde del scrollport, que es
               exactamente donde vive la barra — el conmutador Chat/Hoy quedaba
               tapado del todo y sus clics los capturaba la barra. */}
-          <div ref={chatColumn} className="flex flex-col gap-2 sm:scroll-mt-20 lg:order-2">
+          <div ref={chatColumn} className="flex flex-col gap-2 sm:scroll-mt-20 lg:order-2 print:hidden">
             {/* Ambos paneles quedan montados y se alternan con hidden: así el
                 chat no pierde la conversación al mirar «Hoy», y el panel
                 «Hoy» sigue reportando la zona horaria del navegador. */}
@@ -264,7 +274,7 @@ export function RoutineBoard({
 
           {/* sombra en vez de borde pleno (spec §4): la superficie grande se
               separa por elevación; el borde queda rebajado como refuerzo */}
-          <div className="relative overflow-hidden rounded-xl border border-edge/60 bg-card shadow-[var(--shadow-card)] lg:order-1">
+          <div className="relative overflow-hidden rounded-xl border border-edge/60 bg-card shadow-[var(--shadow-card)] lg:order-1 print:border-0 print:shadow-none">
             <WeekCalendar
               items={items}
               categories={categories}
@@ -279,7 +289,7 @@ export function RoutineBoard({
                 el desplazamiento horizontal del calendario en móvil; los
                 botones lo recuperan. */}
             {items.length === 0 && (
-              <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-card/80 p-4">
+              <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-card/80 p-4 print:hidden">
                 <div className="flex max-w-xs flex-col items-center gap-3 text-center">
                   <p className="text-base font-semibold text-ink">Tu semana está en blanco</p>
                   <p className="text-sm text-ink-3">
@@ -311,7 +321,7 @@ export function RoutineBoard({
         {/* los legales al pie (spec §4): la cabecera es la posición de máxima
             jerarquía y esto es lo de menor uso. Dentro del contenedor inert,
             como el resto, para quedar cubiertos cuando hay un diálogo. */}
-        <footer className="flex gap-4 text-xs text-ink-3">
+        <footer className="flex gap-4 text-xs text-ink-3 print:hidden">
           <Link href="/legal/privacidad" className="underline hover:text-ink-2">
             Privacidad
           </Link>
