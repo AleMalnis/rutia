@@ -7,6 +7,7 @@ import { AppearanceDialog } from '@/components/appearance-dialog'
 import { CategoryLegend } from '@/components/category-legend'
 import { CategoryManagerDialog } from '@/components/category-manager-dialog'
 import { ChatPanel, type ChatUiMessage } from '@/components/chat-panel'
+import { DeleteAccountDialog } from '@/components/delete-account-dialog'
 import { ExportButton } from '@/components/export-button'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { LlmSettingsDialog } from '@/components/llm-settings-dialog'
@@ -31,6 +32,7 @@ type Dialog =
   | { type: 'categories' }
   | { type: 'appearance' }
   | { type: 'ia'; tab?: 'key' | 'connectors' }
+  | { type: 'delete-account' }
   | null
 
 export function RoutineBoard({
@@ -352,6 +354,15 @@ export function RoutineBoard({
               Descargar mis datos
             </a>
           )}
+          {/* borrado total (spec §12.13, art. 17): discreto aquí — el peso lo
+              lleva el diálogo, que es donde se decide de verdad */}
+          <button
+            type="button"
+            onClick={() => open({ type: 'delete-account' })}
+            className="underline hover:text-red-600 dark:hover:text-red-400"
+          >
+            Borrar mi cuenta
+          </button>
         </footer>
       </div>
 
@@ -382,6 +393,10 @@ export function RoutineBoard({
           onStatusChange={setLlmStatus}
           onClose={close}
         />
+      )}
+
+      {dialog?.type === 'delete-account' && (
+        <DeleteAccountDialog iosStandalone={iosStandalone} onClose={close} />
       )}
     </>
   )

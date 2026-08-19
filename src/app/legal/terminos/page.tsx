@@ -164,8 +164,10 @@ export default function TerminosPage() {
 
       <h2>11. Fin del uso</h2>
       <p>
-        Puedes dejar de usar RutIA cuando quieras y pedir la eliminación de tu cuenta escribiendo a{' '}
-        <a href={`mailto:${CONTACTO}`}>{CONTACTO}</a>; se borra todo lo asociado. Por nuestra parte,
+        Puedes dejar de usar RutIA cuando quieras y borrar tu cuenta tú mismo desde «Borrar mi
+        cuenta», al pie del calendario: se elimina de inmediato todo lo asociado, sin vuelta
+        atrás. Si lo prefieres, también puedes pedirlo escribiendo a{' '}
+        <a href={`mailto:${CONTACTO}`}>{CONTACTO}</a>. Por nuestra parte,
         una cuenta solo se suspende o elimina si incumple el apartado 7, y se te comunicará el
         motivo salvo que hacerlo sea inviable.
       </p>

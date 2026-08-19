@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { SecretConfigError } from '@/lib/crypto'
 import { parseItemForm } from '@/lib/item-form'
+import { deleteAccountConfirmationSchema } from '@/lib/schemas'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
@@ -36,8 +37,10 @@ async function getContext() {
     const { data } = await supabase.auth.getClaims()
     claims = data?.claims ?? null
   } catch (error) {
-    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
-    console.error(`getContext: ${detail}`)
+    // solo la CLASE del error: el mensaje puede incrustar material del token
+    // (misma sanitización que el proxy y /api/export)
+    const name = error instanceof Error ? error.name : 'UnknownError'
+    console.error(`getContext: ${name}`)
     return null
   }
 
@@ -351,4 +354,43 @@ export async function logout(): Promise<void> {
     return
   }
   redirect('/login')
+}
+
+export type DeleteAccountState = null | { status: 'error'; message: string }
+
+/**
+ * Borra la cuenta ENTERA (spec §12.13, RGPD art. 17): la función SQL de la
+ * migración 0005 elimina auth.users → cascada sobre todo lo demás. La
+ * confirmación («BORRAR») se valida también aquí, como toda frontera: el
+ * diálogo ya la exige, pero una server action es invocable sin la UI.
+ */
+export async function deleteAccount(confirmation: unknown): Promise<DeleteAccountState> {
+  const parsed = deleteAccountConfirmationSchema.safeParse(confirmation)
+  if (!parsed.success) {
+    return { status: 'error', message: 'Escribe BORRAR (en mayúsculas) para confirmar.' }
+  }
+
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  const { error } = await context.supabase.rpc('delete_my_account')
+  if (error) {
+    // código y nombre, nunca el mensaje crudo: misma política que el resto
+    console.error(`deleteAccount: ${error.code ?? error.name ?? 'error'}`)
+    return {
+      status: 'error',
+      message:
+        'No se pudo borrar la cuenta. Vuelve a intentarlo; si persiste, escríbenos y la borramos nosotros.',
+    }
+  }
+
+  // La cuenta ya NO existe: el signOut es cortesía para limpiar las cookies
+  // del navegador, y sus errores no cambian nada (no hay sesión que salvar).
+  try {
+    await context.supabase.auth.signOut({ scope: 'local' })
+  } catch {
+    // sin dueño no hay sesión que revocar; las cookies caducan solas
+  }
+
+  redirect('/')
 }

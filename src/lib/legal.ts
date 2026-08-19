@@ -14,4 +14,4 @@ export const CONTACTO = 'intermalnisalevalor@gmail.com'
 export const REPOSITORIO = 'https://github.com/AleMalnis/rutia'
 
 /** Fecha de la última revisión de los textos legales. */
-export const ACTUALIZADO = '14 de agosto de 2026'
+export const ACTUALIZADO = '19 de agosto de 2026'

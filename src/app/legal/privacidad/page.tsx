@@ -237,8 +237,13 @@ export default function PrivacidadPage() {
           ficheros.
         </li>
         <li>
-          <strong>El borrado de la cuenta</strong> se atiende por correo, porque todavía no hay una
-          pantalla que lo haga sola (apartado 11).
+          <strong>El borrado de la cuenta</strong> también es autoservicio: «Borrar mi cuenta», al
+          pie del calendario, elimina de forma <strong>inmediata e irreversible</strong> la cuenta
+          y todo lo asociado — perfil, rutina, categorías, completados, conversación, clave
+          cifrada y accesos del modo MCP. Un matiz honesto sobre esos accesos: ningún cliente
+          podrá renovar su acceso, pero un token ya emitido sigue siendo formalmente válido hasta
+          su caducidad (una hora como máximo); es inofensivo, porque ya no existen datos que
+          consultar. Si lo prefieres, también puedes pedir el borrado por correo.
         </li>
         <li>
           <strong>Revocar el acceso de un cliente MCP:</strong> hoy se hace desde el propio cliente
@@ -274,7 +279,6 @@ export default function PrivacidadPage() {
           No hay un consentimiento explícito e independiente para los datos de salud, con su propio
           registro: hoy se apoya en que los aportas voluntariamente.
         </li>
-        <li>No hay borrado de la cuenta desde la app; se atiende por correo.</li>
         <li>No hay pantalla propia para revocar los accesos del modo MCP.</li>
         <li>
           El acceso del modo MCP no está acotado por permisos: como se explica en el apartado 5, el
