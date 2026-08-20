@@ -49,7 +49,14 @@ describe('createRetryFetch', () => {
     vi.stubGlobal('fetch', inner)
 
     const promise = createRetryFetch()('https://x/rest/v1/items')
-    await vi.advanceTimersByTimeAsync(3000)
+    // por pasos, no de golpe: así el test clava cada retardo (1 s y luego 2 s)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(inner).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(inner).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(1)
     const response = await promise
 
     expect(inner).toHaveBeenCalledTimes(3)
