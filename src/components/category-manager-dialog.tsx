@@ -243,7 +243,7 @@ export function CategoryManagerDialog({ categories, onClose }: Props) {
                 autoFocus
                 value={draft.name}
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                className="w-full rounded-md border border-edge bg-card px-2 py-1.5 text-sm text-ink"
+                className="w-full rounded-md border border-edge bg-card px-2.5 py-1.5 text-sm text-ink focus:outline-2 focus:outline-accent"
               />
             </label>
 

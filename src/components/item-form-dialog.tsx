@@ -12,7 +12,7 @@ type Props = {
 }
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-edge bg-card px-2 py-1.5 text-sm text-ink'
+  'w-full rounded-md border border-edge bg-card px-2.5 py-1.5 text-sm text-ink focus:outline-2 focus:outline-accent'
 
 const DAY_CLASS =
   'flex cursor-pointer items-center gap-1 rounded-md border border-edge px-2 py-1 text-sm text-ink has-checked:border-accent has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent'
