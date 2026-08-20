@@ -242,6 +242,10 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>
 // El diálogo ya la exige, pero una server action es invocable sin la UI.
 export const deleteAccountConfirmationSchema = z.literal('BORRAR')
 
+// Cliente OAuth del modo MCP (spec §12.9): GoTrue identifica cada cliente
+// por UUID, y revocar es la única acción que viaja con ese id.
+export const mcpClientIdSchema = z.uuid('clientId debe ser un UUID.')
+
 // Entidad completa tal y como sale del repositorio. El user_id no viaja en la
 // entidad: lo pone siempre el servidor desde la sesión (spec §6.2).
 export type RoutineItem = {

@@ -1,7 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { deleteLlmKey, saveLlmKey } from '@/app/app/actions'
+import {
+  deleteLlmKey,
+  listMcpGrants,
+  revokeMcpGrant,
+  saveLlmKey,
+  type McpGrant,
+} from '@/app/app/actions'
 import { PanelTab } from '@/components/panel-tab'
 import {
   LLM_PROVIDERS,
@@ -18,6 +24,12 @@ import { claudeConnectUrl } from '@/lib/mcp/connect'
 // El modo MCP (§6.5) vive en este mismo diálogo y no en un botón aparte porque
 // es la ALTERNATIVA a pegar la clave: quien llega aquí sin clave —el chat le
 // manda— tiene que ver las dos formas de usar el asistente, no solo una.
+
+// Solo se pinta tras cargar los grants en cliente: sin SSR no hay desajuste
+// de hidratación por el huso o el idioma del navegador.
+function formatGrantDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 const OPTION_CLASS =
   'flex cursor-pointer items-center gap-1.5 rounded-md border border-edge px-2.5 py-1.5 text-sm text-ink has-checked:border-accent has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent has-disabled:cursor-default has-disabled:opacity-60'
@@ -55,6 +67,13 @@ export function LlmSettingsDialog({
     initialTab === 'connectors' && mcpUrl != null ? 'connectors' : 'key',
   )
   const [isPending, startTransition] = useTransition()
+  // Accesos concedidos del modo MCP (spec §12.9). null = aún sin pedir; la
+  // carga es perezosa (al entrar en «Conectores») porque la mayoría abre este
+  // diálogo solo para la clave y consultar grants es un viaje a GoTrue.
+  const [grants, setGrants] = useState<McpGrant[] | null>(null)
+  const [grantsError, setGrantsError] = useState<string | null>(null)
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null)
+  const [isRevokePending, startRevokeTransition] = useTransition()
   const backdropMouseDown = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -70,6 +89,27 @@ export function LlmSettingsDialog({
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [onClose, isPending])
+
+  // Pide los accesos la primera vez que la pestaña «Conectores» está a la
+  // vista (también cuando es la de apertura). «Reintentar» limpia el error y
+  // este mismo efecto vuelve a disparar la consulta.
+  useEffect(() => {
+    if (tab !== 'connectors' || mcpUrl == null || grants !== null || grantsError !== null) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const result = await listMcpGrants()
+        if (cancelled) return
+        if (result.status === 'ok') setGrants(result.grants)
+        else setGrantsError(result.message)
+      } catch {
+        if (!cancelled) setGrantsError('No se pudieron consultar los accesos. Vuelve a intentarlo.')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [tab, mcpUrl, grants, grantsError])
 
   const selected = LLM_PROVIDERS.find((entry) => entry.id === provider)
 
@@ -112,6 +152,37 @@ export function LlmSettingsDialog({
     // volver minutos después y encontrar «¿Seguro? Borrar» armado convertiría
     // el segundo clic consciente en uno accidental
     setConfirmDelete(false)
+    setConfirmRevoke(null)
+  }
+
+  function revoke(clientId: string) {
+    if (isRevokePending) return
+    if (confirmRevoke !== clientId) {
+      // dos pasos, como «Borrar clave»: el primer clic arma, el segundo revoca
+      setConfirmRevoke(clientId)
+      return
+    }
+    setGrantsError(null)
+    startRevokeTransition(async () => {
+      try {
+        const result = await revokeMcpGrant(clientId)
+        if (result.status === 'ok') {
+          setGrants(result.grants)
+          setConfirmRevoke(null)
+        } else if (result.status === 'stale') {
+          // revocado de verdad, pero la recarga falló: invalidar la lista
+          // (dejar el grant pintado invitaría a re-revocar lo ya revocado) y
+          // ofrecer el «Reintentar», que solo repite la consulta
+          setGrants(null)
+          setConfirmRevoke(null)
+          setGrantsError(result.message)
+        } else {
+          setGrantsError(result.message)
+        }
+      } catch {
+        setGrantsError('No se pudo revocar el acceso. Vuelve a intentarlo.')
+      }
+    })
   }
 
   function remove() {
@@ -376,6 +447,63 @@ export function LlmSettingsDialog({
                     ? 'URL copiada.'
                     : 'No se pudo copiar. Selecciona la URL y cópiala a mano.'}
                 </p>
+              )}
+            </div>
+
+            {/* Accesos concedidos (spec §12.9): la otra mitad del control —
+                autorizar sin poder revocar no es control */}
+            <div className="mt-4 border-t border-edge/60 pt-3">
+              <h4 className="text-sm font-medium text-ink">Accesos concedidos</h4>
+              {grants === null && grantsError === null && (
+                <p className="mt-1 text-xs text-ink-3">Consultando accesos…</p>
+              )}
+              {grantsError !== null && (
+                <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+                  {grantsError}{' '}
+                  {grants === null && (
+                    <button type="button" onClick={() => setGrantsError(null)} className="underline">
+                      Reintentar
+                    </button>
+                  )}
+                </p>
+              )}
+              {grants !== null && grants.length === 0 && (
+                <p className="mt-1 text-xs text-ink-3">
+                  Ninguna aplicación tiene acceso ahora mismo.
+                </p>
+              )}
+              {grants !== null && grants.length > 0 && (
+                <>
+                  <ul className="mt-1.5 space-y-1.5">
+                    {grants.map((grant) => (
+                      <li key={grant.clientId} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-ink">{grant.clientName}</p>
+                          <p className="text-xs text-ink-3">
+                            desde el {formatGrantDate(grant.grantedAt)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => revoke(grant.clientId)}
+                          disabled={isRevokePending}
+                          className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950"
+                        >
+                          {isRevokePending && confirmRevoke === grant.clientId
+                            ? 'Revocando…'
+                            : confirmRevoke === grant.clientId
+                              ? '¿Seguro? Revocar'
+                              : 'Revocar'}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-xs text-ink-3">
+                    Al revocar se invalidan las sesiones de la aplicación y sus tokens de
+                    renovación: no puede volver a entrar. Un token de acceso ya emitido puede
+                    seguir valiendo hasta una hora, hasta que caduque.
+                  </p>
+                </>
               )}
             </div>
 
