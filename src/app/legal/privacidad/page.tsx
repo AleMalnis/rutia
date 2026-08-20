@@ -243,7 +243,11 @@ export default function PrivacidadPage() {
           cifrada y accesos del modo MCP. Un matiz honesto sobre esos accesos: ningún cliente
           podrá renovar su acceso, pero un token ya emitido sigue siendo formalmente válido hasta
           su caducidad (una hora como máximo); es inofensivo, porque ya no existen datos que
-          consultar. Si lo prefieres, también puedes pedir el borrado por correo.
+          consultar. Si lo prefieres, también puedes pedir el borrado por correo. Única excepción:
+          la cuenta de demostración pública, que es del responsable y no puede borrarse desde la
+          app. Es <strong>compartida</strong>: no escribas en ella datos personales ni claves
+          propias — lo que dejes lo verá quien entre después y se elimina en cada restauración
+          periódica; si quieres que algo tuyo desaparezca antes, pídelo por correo.
         </li>
         <li>
           <strong>Revocar el acceso de un cliente MCP:</strong> hoy se hace desde el propio cliente
