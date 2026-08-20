@@ -84,12 +84,16 @@ begin
 
   -- completados de los últimos 3 días, solo en ítems programados ese día de
   -- la semana (isodow: 1=lunes … 7=domingo → días de la app restando 1) y a
-  -- una hora verosímil de esa noche, no la de ejecutar el seed
+  -- una hora verosímil de esa noche, no la de ejecutar el seed. El «hoy» se
+  -- ancla a Europe/Madrid (el huso del perfil demo): current_date iría en el
+  -- de la conexión (UTC en Supabase) y de madrugada correría la ventana un día
   insert into public.completions (user_id, item_id, date, completed_at)
   select demo_id, i.id, d.day,
          (d.day + time '22:00') at time zone 'Europe/Madrid'
   from generate_series(1, 3) as g(n)
-  cross join lateral (select (current_date - g.n) as day) d
+  cross join lateral (
+    select ((now() at time zone 'Europe/Madrid')::date - g.n) as day
+  ) d
   join public.routine_items i
     on i.user_id = demo_id
    and (extract(isodow from d.day)::int - 1) = any (i.days)
