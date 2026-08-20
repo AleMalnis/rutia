@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createRetryFetch } from './fetch-retry'
 
 /**
  * Cliente de Supabase para el servidor MCP (spec §6.5).
@@ -24,7 +25,12 @@ export function createMcpClient(accessToken: string): SupabaseClient {
   }
 
   return createSupabaseClient(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    global: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      // un token OAuth recién emitido sufre el mismo desfase de reloj que el
+      // de sesión (PGRST303, spec §7.2)
+      fetch: createRetryFetch(),
+    },
     auth: {
       // ruta sin navegador ni cookies: nada que persistir, refrescar ni leer
       // de la URL

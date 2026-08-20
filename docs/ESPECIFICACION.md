@@ -331,6 +331,7 @@ flowchart LR
 - **Servicios** contienen la lógica: solapes, recurrencia, checks de hoy, ejecución de herramientas, bucle del agente.
 - **Repositorios** encapsulan el acceso a datos.
 - Tipos compartidos + esquemas Zod en `lib/schemas`.
+- **El desfase de reloj de Supabase se absorbe en el borde** (visto en producción, agosto 2026): GoTrue y PostgREST corren en máquinas distintas y el reloj de PostgREST puede ir unos segundos por detrás, así que un token recién emitido —justo tras el login o un refresco de sesión— se rechaza con `PGRST303` «JWT issued at future» y la primera carga de `/app` moría en la pantalla de reintentar. No podemos sincronizar sus relojes; sí esperar a que el `iat` deje de ser futuro: el `fetch` de los clientes de servidor (`lib/supabase/server.ts` y `mcp.ts`) reintenta **solo** esa respuesta con pausas de 1 s y 2 s. Es seguro para cualquier método, también escrituras, porque PGRST303 se rechaza antes de ejecutar nada; cualquier otro error (un `PGRST301` caducado, un fallo de RLS) pasa tal cual y sin espera.
 
 ### 7.3 Estructura de carpetas propuesta
 
