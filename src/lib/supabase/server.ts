@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { createRetryFetch } from './fetch-retry'
 
 /**
  * Cliente de Supabase para el servidor: Server Components, Server Actions y
@@ -23,6 +24,8 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(url, anonKey, {
+    // absorbe el desfase de reloj de Supabase (PGRST303, spec §7.2)
+    global: { fetch: createRetryFetch() },
     cookies: {
       getAll() {
         return cookieStore.getAll()
