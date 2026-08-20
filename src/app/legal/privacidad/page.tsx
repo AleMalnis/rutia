@@ -252,9 +252,10 @@ export default function PrivacidadPage() {
         <li>
           <strong>Revocar el acceso de un cliente MCP</strong> también es autoservicio: en
           Ajustes → IA → Conectores, «Accesos concedidos» lista lo autorizado y cada acceso se
-          revoca ahí mismo. Al revocar, el cliente no puede renovar su acceso, aunque un token ya
-          emitido puede seguir valiendo hasta una hora, hasta que caduque. También puedes revocar
-          desde el propio cliente.
+          revoca ahí mismo. Al revocar se invalidan las sesiones del cliente y sus tokens de
+          renovación — no puede volver a entrar —, aunque un token de acceso ya emitido puede
+          seguir valiendo hasta una hora, hasta que caduque. También puedes revocar desde el
+          propio cliente.
         </li>
       </ul>
       <p>

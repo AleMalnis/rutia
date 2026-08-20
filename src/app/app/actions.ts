@@ -409,6 +409,10 @@ export type McpGrant = { clientId: string; clientName: string; grantedAt: string
 export type McpGrantsState =
   | { status: 'ok'; grants: McpGrant[] }
   | { status: 'error'; message: string }
+// 'stale': la revocación SÍ se hizo pero la recarga posterior falló — el
+// diálogo debe invalidar su lista y reintentar solo la consulta, nunca
+// conservar el grant revocado ni dejar armada la confirmación
+export type McpRevokeState = McpGrantsState | { status: 'stale'; message: string }
 
 export async function listMcpGrants(): Promise<McpGrantsState> {
   const context = await getContext()
@@ -432,7 +436,7 @@ export async function listMcpGrants(): Promise<McpGrantsState> {
   }
 }
 
-export async function revokeMcpGrant(clientId: unknown): Promise<McpGrantsState> {
+export async function revokeMcpGrant(clientId: unknown): Promise<McpRevokeState> {
   const parsed = mcpClientIdSchema.safeParse(clientId)
   if (!parsed.success) {
     return { status: 'error', message: 'Identificador de cliente no válido.' }
@@ -449,5 +453,14 @@ export async function revokeMcpGrant(clientId: unknown): Promise<McpGrantsState>
 
   // la lista repintada sale del servidor, no de una resta local: si otra
   // pestaña (o el propio cliente) tocó los grants mientras tanto, se ve
-  return listMcpGrants()
+  const refreshed = await listMcpGrants()
+  if (refreshed.status === 'error') {
+    // el acceso YA está revocado: devolver 'error' a secas haría creer lo
+    // contrario y dejaría el grant pintado con la confirmación armada
+    return {
+      status: 'stale',
+      message: 'El acceso quedó revocado, pero la lista no se pudo recargar. Vuelve a consultarla.',
+    }
+  }
+  return refreshed
 }

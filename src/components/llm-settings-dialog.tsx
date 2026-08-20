@@ -169,6 +169,13 @@ export function LlmSettingsDialog({
         if (result.status === 'ok') {
           setGrants(result.grants)
           setConfirmRevoke(null)
+        } else if (result.status === 'stale') {
+          // revocado de verdad, pero la recarga falló: invalidar la lista
+          // (dejar el grant pintado invitaría a re-revocar lo ya revocado) y
+          // ofrecer el «Reintentar», que solo repite la consulta
+          setGrants(null)
+          setConfirmRevoke(null)
+          setGrantsError(result.message)
         } else {
           setGrantsError(result.message)
         }
@@ -492,8 +499,9 @@ export function LlmSettingsDialog({
                     ))}
                   </ul>
                   <p className="mt-1.5 text-xs text-ink-3">
-                    Al revocar, la aplicación no puede renovar su acceso; un token ya emitido
-                    puede seguir valiendo hasta una hora, hasta que caduque.
+                    Al revocar se invalidan las sesiones de la aplicación y sus tokens de
+                    renovación: no puede volver a entrar. Un token de acceso ya emitido puede
+                    seguir valiendo hasta una hora, hasta que caduque.
                   </p>
                 </>
               )}
