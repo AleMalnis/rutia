@@ -250,8 +250,11 @@ export default function PrivacidadPage() {
           periódica; si quieres que algo tuyo desaparezca antes, pídelo por correo.
         </li>
         <li>
-          <strong>Revocar el acceso de un cliente MCP:</strong> hoy se hace desde el propio cliente
-          o a petición nuestra por correo.
+          <strong>Revocar el acceso de un cliente MCP</strong> también es autoservicio: en
+          Ajustes → IA → Conectores, «Accesos concedidos» lista lo autorizado y cada acceso se
+          revoca ahí mismo. Al revocar, el cliente no puede renovar su acceso, aunque un token ya
+          emitido puede seguir valiendo hasta una hora, hasta que caduque. También puedes revocar
+          desde el propio cliente.
         </li>
       </ul>
       <p>
@@ -283,7 +286,6 @@ export default function PrivacidadPage() {
           No hay un consentimiento explícito e independiente para los datos de salud, con su propio
           registro: hoy se apoya en que los aportas voluntariamente.
         </li>
-        <li>No hay pantalla propia para revocar los accesos del modo MCP.</li>
         <li>
           El acceso del modo MCP no está acotado por permisos: como se explica en el apartado 5, el
           token entregado alcanza todo lo que alcanza tu propia sesión. Acotarlo exige permisos

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { SecretConfigError } from '@/lib/crypto'
 import { parseItemForm } from '@/lib/item-form'
-import { deleteAccountConfirmationSchema } from '@/lib/schemas'
+import { deleteAccountConfirmationSchema, mcpClientIdSchema } from '@/lib/schemas'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
@@ -398,4 +398,56 @@ export async function deleteAccount(confirmation: unknown): Promise<DeleteAccoun
   }
 
   redirect('/')
+}
+
+// ── Accesos del modo MCP (spec §12.9) ───────────────────────────────────────
+// Lista y revocación de los grants OAuth del usuario. Son datos de GoTrue, no
+// de PostgREST: no hay tabla ni repositorio que envolver — la action ES la
+// frontera, como en deleteAccount.
+
+export type McpGrant = { clientId: string; clientName: string; grantedAt: string }
+export type McpGrantsState =
+  | { status: 'ok'; grants: McpGrant[] }
+  | { status: 'error'; message: string }
+
+export async function listMcpGrants(): Promise<McpGrantsState> {
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  const { data, error } = await context.supabase.auth.oauth.listGrants()
+  if (error) {
+    // solo la clase: misma política de logs que el resto de auth
+    console.error(`listMcpGrants: ${error.name ?? 'error'}`)
+    return { status: 'error', message: 'No se pudieron consultar los accesos. Vuelve a intentarlo.' }
+  }
+
+  return {
+    status: 'ok',
+    grants: (data ?? []).map((grant) => ({
+      clientId: grant.client.id,
+      // el nombre lo elige quien registró el cliente y puede venir vacío
+      clientName: grant.client.name?.trim() || 'Cliente sin nombre',
+      grantedAt: grant.granted_at,
+    })),
+  }
+}
+
+export async function revokeMcpGrant(clientId: unknown): Promise<McpGrantsState> {
+  const parsed = mcpClientIdSchema.safeParse(clientId)
+  if (!parsed.success) {
+    return { status: 'error', message: 'Identificador de cliente no válido.' }
+  }
+
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  const { error } = await context.supabase.auth.oauth.revokeGrant({ clientId: parsed.data })
+  if (error) {
+    console.error(`revokeMcpGrant: ${error.name ?? 'error'}`)
+    return { status: 'error', message: 'No se pudo revocar el acceso. Vuelve a intentarlo.' }
+  }
+
+  // la lista repintada sale del servidor, no de una resta local: si otra
+  // pestaña (o el propio cliente) tocó los grants mientras tanto, se ve
+  return listMcpGrants()
 }
