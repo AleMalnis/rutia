@@ -274,10 +274,16 @@ body {
    temas y 2 modos (el acento está validado a >=3:1 sobre página y tarjeta).
    :focus-visible y no :focus a propósito: el clic de ratón no lo dispara.
    Los inputs de texto añaden aparte su focus: por utilidad, que sí responde
-   al clic — escribir es distinto de navegar. */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+   al clic — escribir es distinto de navegar.
+   En @layer base a propósito: es un DEFAULT y cualquier utilidad debe poder
+   anularlo — sin capa ganaría al outline-none deliberado de los contenedores
+   de diálogo (tabIndex -1 + focus programático al abrir) y un usuario de
+   teclado vería un anillo alrededor del diálogo entero. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 /* Marcas de color de categoría: cada elemento define inline sus variantes
