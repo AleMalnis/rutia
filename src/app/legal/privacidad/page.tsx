@@ -78,7 +78,9 @@ export default function PrivacidadPage() {
         <li>
           <strong>Suscripciones de avisos:</strong> si activas los avisos en un dispositivo, la
           dirección técnica de entrega y las claves de cifrado que emite tu navegador para ese
-          dispositivo. Se borran al desactivar los avisos y con la cuenta.
+          dispositivo — se borran al desactivar los avisos y con la cuenta. Aparte, un registro de
+          qué recordatorio ya se avisó y qué día, solo para no avisarte dos veces: ese caduca solo,
+          a la semana (borrarlo al desactivar un dispositivo re-avisaría a tus otros dispositivos).
         </li>
       </ul>
       <p>
@@ -156,6 +158,13 @@ export default function PrivacidadPage() {
         tratamiento se produce en <strong>tu</strong> cuenta con ellos.
       </p>
       <p>
+        Si activas los <strong>avisos</strong> en un dispositivo, cada aviso (el título del
+        recordatorio y su hora, nunca el <em>detalle</em>) viaja hasta tu navegador a través del
+        servicio de push de su fabricante (Google, Mozilla o Apple, según el navegador). Va{' '}
+        <strong>cifrado de extremo a extremo</strong>: ese servicio ve que te llega un aviso y
+        cuándo, no lo que dice.
+      </p>
+      <p>
         Si además activas el <strong>modo MCP</strong> y conectas un cliente externo (Claude,
         ChatGPT o tu editor de código), ese cliente puede leer tu rutina completa — esta vez{' '}
         <strong>incluidas las notas</strong> — y crear, editar, borrar y marcar ítems en tu nombre.
@@ -184,6 +193,11 @@ export default function PrivacidadPage() {
         <li>
           <strong>Anthropic, OpenAI o Google</strong> — solo el que tú configures, y solo para
           procesar cada mensaje del chat.
+        </li>
+        <li>
+          <strong>Google, Mozilla o Apple</strong> (el servicio de push de tu navegador) — solo si
+          activas los avisos, y solo para entregarlos: ven que te llega un aviso y cuándo, nunca
+          su contenido, que viaja cifrado de extremo a extremo (apartado 5).
         </li>
       </ul>
       <p>

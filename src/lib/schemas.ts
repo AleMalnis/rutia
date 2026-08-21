@@ -262,6 +262,26 @@ export const pushSubscriptionSchema = z.object({
   }),
 })
 
+// Lote que el planificador (pg_cron → pg_net, migración 0008) entrega a
+// /api/push/send: suscripciones ya resueltas más el contenido del aviso.
+// El tope alto es un seguro, no una promesa: un minuto normal trae unidades.
+export const pushDispatchBatchSchema = z
+  .array(
+    z.object({
+      endpoint: pushEndpointSchema,
+      p256dh: z.base64url().min(1).max(512),
+      auth: z.base64url().min(1).max(512),
+      // 200 y no 80: el CHECK de routine_items cuenta CARACTERES (80) y aquí
+      // z.string().max() cuenta unidades UTF-16 — un título legítimo lleno de
+      // emojis puede medir el doble, y rechazarlo tumbaría el trozo entero
+      title: z.string().min(1).max(200),
+      body: z.string().max(120),
+      tag: z.string().min(1).max(100),
+    }),
+  )
+  .min(1)
+  .max(500)
+
 // Entidad completa tal y como sale del repositorio. El user_id no viaja en la
 // entidad: lo pone siempre el servidor desde la sesión (spec §6.2).
 export type RoutineItem = {
