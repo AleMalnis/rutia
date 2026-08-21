@@ -504,8 +504,13 @@ export async function subscribePush(subscription: unknown): Promise<PushActionSt
     if (error instanceof RepoError && error.code === '23505') {
       // endpoint ya registrado: si es del propio usuario, activar dos veces
       // es idempotente; si es de otro, que el cliente estrene endpoint
-      if (await repo.ownsEndpoint(context.userId, parsed.data.endpoint)) {
-        return { status: 'ok' }
+      try {
+        if (await repo.ownsEndpoint(context.userId, parsed.data.endpoint)) {
+          return { status: 'ok' }
+        }
+      } catch (checkError) {
+        // sin esta red, un fallo aquí escaparía del contrato de la action
+        return unexpectedFailure('subscribePush', checkError)
       }
       return {
         status: 'conflict',

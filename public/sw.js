@@ -10,6 +10,8 @@ self.addEventListener('push', (event) => {
   } catch {
     return // un push que no es nuestro JSON no pinta nada
   }
+  // JSON válido también puede ser null o un primitivo: fuera igualmente
+  if (payload == null || typeof payload !== 'object') return
   if (typeof payload.title !== 'string' || payload.title.length === 0) return
 
   event.waitUntil(
