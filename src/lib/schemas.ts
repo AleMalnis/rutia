@@ -271,7 +271,10 @@ export const pushDispatchBatchSchema = z
       endpoint: pushEndpointSchema,
       p256dh: z.base64url().min(1).max(512),
       auth: z.base64url().min(1).max(512),
-      title: z.string().min(1).max(80),
+      // 200 y no 80: el CHECK de routine_items cuenta CARACTERES (80) y aquí
+      // z.string().max() cuenta unidades UTF-16 — un título legítimo lleno de
+      // emojis puede medir el doble, y rechazarlo tumbaría el trozo entero
+      title: z.string().min(1).max(200),
       body: z.string().max(120),
       tag: z.string().min(1).max(100),
     }),

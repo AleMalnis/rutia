@@ -78,9 +78,9 @@ export default function PrivacidadPage() {
         <li>
           <strong>Suscripciones de avisos:</strong> si activas los avisos en un dispositivo, la
           dirección técnica de entrega y las claves de cifrado que emite tu navegador para ese
-          dispositivo, más un registro de qué recordatorio ya se avisó y qué día (solo para no
-          avisarte dos veces; se borra a la semana). Se borran al desactivar los avisos y con la
-          cuenta.
+          dispositivo — se borran al desactivar los avisos y con la cuenta. Aparte, un registro de
+          qué recordatorio ya se avisó y qué día, solo para no avisarte dos veces: ese caduca solo,
+          a la semana (borrarlo al desactivar un dispositivo re-avisaría a tus otros dispositivos).
         </li>
       </ul>
       <p>
@@ -193,6 +193,11 @@ export default function PrivacidadPage() {
         <li>
           <strong>Anthropic, OpenAI o Google</strong> — solo el que tú configures, y solo para
           procesar cada mensaje del chat.
+        </li>
+        <li>
+          <strong>Google, Mozilla o Apple</strong> (el servicio de push de tu navegador) — solo si
+          activas los avisos, y solo para entregarlos: ven que te llega un aviso y cuándo, nunca
+          su contenido, que viaja cifrado de extremo a extremo (apartado 5).
         </li>
       </ul>
       <p>

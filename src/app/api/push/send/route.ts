@@ -54,8 +54,10 @@ export async function POST(request: Request): Promise<Response> {
         await webpush.sendNotification(
           { endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
           JSON.stringify({ title: item.title, body: item.body, tag: item.tag }),
-          // un recordatorio tardío ya no recuerda nada: 5 minutos y caduca
-          { TTL: 300 },
+          // un recordatorio tardío ya no recuerda nada: 5 minutos y caduca.
+          // timeout finito: un servicio de push colgado no puede retener la
+          // respuesta (y con ella la lista de muertos) indefinidamente
+          { TTL: 300, timeout: 10000 },
         )
         sent += 1
       } catch (error) {

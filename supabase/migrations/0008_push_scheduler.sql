@@ -53,6 +53,10 @@ declare
   dispatch_url text;
   dispatch_secret text;
   batch jsonb;
+  chunk jsonb;
+  total int;
+  chunk_size constant int := 500;
+  offset_n int := 0;
   request_id bigint;
 begin
   select decrypted_secret into dispatch_url
@@ -129,22 +133,35 @@ begin
     return;
   end if;
 
-  -- 3. Un solo POST con el lote del minuto; la respuesta llega asíncrona
-  select net.http_post(
-    url := dispatch_url,
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || dispatch_secret
-    ),
-    body := batch
-  ) into request_id;
+  -- 3. POST por trozos de como mucho 500 avisos (el tope que acepta el
+  --    endpoint): un minuto gigante no puede tumbar el lote entero. La
+  --    entrega es a-lo-sumo-una-vez a propósito: si un envío falla, ese
+  --    aviso se pierde — con TTL de 5 minutos, reintentarlo tarde molesta
+  --    más que ayuda, y el panel «Hoy» sigue siendo la fuente de verdad.
+  total := jsonb_array_length(batch);
+  while offset_n < total loop
+    select jsonb_agg(e.value) into chunk
+    from jsonb_array_elements(batch) with ordinality as e(value, ord)
+    where e.ord > offset_n and e.ord <= offset_n + chunk_size;
 
-  insert into public.push_dispatch_log (request_id) values (request_id);
+    select net.http_post(
+      url := dispatch_url,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || dispatch_secret
+      ),
+      body := chunk
+    ) into request_id;
+
+    insert into public.push_dispatch_log (request_id) values (request_id);
+    offset_n := offset_n + chunk_size;
+  end loop;
 end;
 $$;
 
 -- solo el cron (postgres) la ejecuta: ningún rol de la app puede dispararla
 revoke all on function public.dispatch_due_push() from public, anon, authenticated;
 
--- cada minuto; re-ejecutar la migración actualiza el job en vez de duplicarlo
+-- cada minuto (cron.schedule con el mismo nombre actualiza el job; la
+-- migración entera, como todas, se ejecuta UNA vez y en orden)
 select cron.schedule('rutia-avisos-push', '* * * * *', 'select public.dispatch_due_push()');
