@@ -75,6 +75,11 @@ export default function PrivacidadPage() {
           <strong>Accesos del modo MCP:</strong> qué cliente externo autorizaste, cuándo y con qué
           permisos. Los gestiona el servidor OAuth de Supabase.
         </li>
+        <li>
+          <strong>Suscripciones de avisos:</strong> si activas los avisos en un dispositivo, la
+          dirección técnica de entrega y las claves de cifrado que emite tu navegador para ese
+          dispositivo. Se borran al desactivar los avisos y con la cuenta.
+        </li>
       </ul>
       <p>
         RutIA no pide ni deduce tu nombre real, tu teléfono, tu dirección ni tu ubicación, y no
@@ -196,7 +201,7 @@ export default function PrivacidadPage() {
       </p>
       <p>
         Al borrar la cuenta se elimina en cascada todo lo asociado: perfil, rutina, categorías,
-        completados, conversación, clave cifrada y accesos concedidos.
+        completados, conversación, clave cifrada, accesos concedidos y suscripciones de avisos.
       </p>
 
       <h2>8. Seguridad</h2>
@@ -240,7 +245,7 @@ export default function PrivacidadPage() {
           <strong>El borrado de la cuenta</strong> también es autoservicio: «Borrar mi cuenta», al
           pie del calendario, elimina de forma <strong>inmediata e irreversible</strong> la cuenta
           y todo lo asociado — perfil, rutina, categorías, completados, conversación, clave
-          cifrada y accesos del modo MCP. Un matiz honesto sobre esos accesos: ningún cliente
+          cifrada, accesos del modo MCP y suscripciones de avisos. Un matiz honesto sobre esos accesos: ningún cliente
           podrá renovar su acceso, pero un token ya emitido sigue siendo formalmente válido hasta
           su caducidad (una hora como máximo); es inofensivo, porque ya no existen datos que
           consultar. Si lo prefieres, también puedes pedir el borrado por correo. Única excepción:

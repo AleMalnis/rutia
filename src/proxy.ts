@@ -20,8 +20,9 @@ export const config = {
   //
   // manifest.webmanifest (spec §4): público por definición, como los iconos
   // que ya excluye la regla de extensiones; el navegador lo pide fuera de la
-  // sesión y verificarla ahí solo gasta.
+  // sesión y verificarla ahí solo gasta. sw.js (spec §4 «Avisos push»), por
+  // lo mismo: es un estático que el navegador refresca por su cuenta.
   matcher: [
-    '/((?!api/mcp|\\.well-known/oauth-protected-resource|manifest\\.webmanifest|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/mcp|\\.well-known/oauth-protected-resource|manifest\\.webmanifest|sw\\.js|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -4,7 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { SecretConfigError } from '@/lib/crypto'
 import { parseItemForm } from '@/lib/item-form'
-import { deleteAccountConfirmationSchema, mcpClientIdSchema } from '@/lib/schemas'
+import webpush from 'web-push'
+import {
+  deleteAccountConfirmationSchema,
+  mcpClientIdSchema,
+  pushEndpointSchema,
+  pushSubscriptionSchema,
+} from '@/lib/schemas'
+import { RepoError } from '@/repositories/items.repo'
+import { createPushSubscriptionsRepo } from '@/repositories/push-subscriptions.repo'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
@@ -463,4 +471,130 @@ export async function revokeMcpGrant(clientId: unknown): Promise<McpRevokeState>
     }
   }
   return refreshed
+}
+
+// ── Avisos push (spec §4 «Avisos push», etapa 2 de la PWA) ──────────────────
+
+export type PushActionState =
+  | { status: 'ok' }
+  // 'conflict': el endpoint ya es de otra cuenta (dispositivo compartido) —
+  // el cliente debe desuscribirse en local, obtener un endpoint nuevo y
+  // reintentar una vez
+  | { status: 'conflict'; message: string }
+  | { status: 'error'; message: string }
+
+export async function subscribePush(subscription: unknown): Promise<PushActionState> {
+  const parsed = pushSubscriptionSchema.safeParse(subscription)
+  if (!parsed.success) {
+    return { status: 'error', message: 'La suscripción del navegador no es válida.' }
+  }
+
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  const repo = createPushSubscriptionsRepo(context.supabase)
+  try {
+    await repo.add(context.userId, {
+      endpoint: parsed.data.endpoint,
+      p256dh: parsed.data.keys.p256dh,
+      auth: parsed.data.keys.auth,
+    })
+    return { status: 'ok' }
+  } catch (error) {
+    if (error instanceof RepoError && error.code === '23505') {
+      // endpoint ya registrado: si es del propio usuario, activar dos veces
+      // es idempotente; si es de otro, que el cliente estrene endpoint
+      try {
+        if (await repo.ownsEndpoint(context.userId, parsed.data.endpoint)) {
+          return { status: 'ok' }
+        }
+      } catch (checkError) {
+        // sin esta red, un fallo aquí escaparía del contrato de la action
+        return unexpectedFailure('subscribePush', checkError)
+      }
+      return {
+        status: 'conflict',
+        message: 'Este navegador estaba suscrito por otra cuenta.',
+      }
+    }
+    return unexpectedFailure('subscribePush', error)
+  }
+}
+
+export async function unsubscribePush(endpoint: unknown): Promise<PushActionState> {
+  const parsed = pushEndpointSchema.safeParse(endpoint)
+  if (!parsed.success) {
+    return { status: 'error', message: 'El endpoint no es válido.' }
+  }
+
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    // borrar lo que no existe también es «desactivado»: idempotente
+    await createPushSubscriptionsRepo(context.supabase).removeByEndpoint(
+      context.userId,
+      parsed.data,
+    )
+    return { status: 'ok' }
+  } catch (error) {
+    return unexpectedFailure('unsubscribePush', error)
+  }
+}
+
+/**
+ * Envía un aviso real al dispositivo que lo pide: la única forma honesta de
+ * saber que los avisos funcionan antes de necesitarlos. Solo alcanza
+ * suscripciones del propio usuario (RLS + filtro explícito).
+ */
+export async function sendTestPush(endpoint: unknown): Promise<PushActionState> {
+  const parsed = pushEndpointSchema.safeParse(endpoint)
+  if (!parsed.success) {
+    return { status: 'error', message: 'El endpoint no es válido.' }
+  }
+
+  const publicKey = process.env.VAPID_PUBLIC_KEY
+  const privateKey = process.env.VAPID_PRIVATE_KEY
+  const subject = process.env.VAPID_SUBJECT
+  if (!publicKey || !privateKey || !subject) {
+    return { status: 'error', message: 'El servidor no tiene configuradas las claves VAPID.' }
+  }
+
+  const context = await getContext()
+  if (context == null) return SESSION_CHECK_FAILED
+
+  try {
+    const subscriptions = await createPushSubscriptionsRepo(context.supabase).listByUser(
+      context.userId,
+    )
+    const target = subscriptions.find((sub) => sub.endpoint === parsed.data)
+    if (target == null) {
+      return { status: 'error', message: 'Este navegador no tiene los avisos activados.' }
+    }
+
+    webpush.setVapidDetails(subject, publicKey, privateKey)
+    await webpush.sendNotification(
+      { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
+      JSON.stringify({
+        title: 'RutIA',
+        body: 'Los avisos funcionan en este dispositivo.',
+        tag: 'rutia-prueba',
+      }),
+    )
+    return { status: 'ok' }
+  } catch (error) {
+    // 404/410: el servicio de push ya no reconoce la suscripción
+    const gone =
+      typeof error === 'object' &&
+      error != null &&
+      'statusCode' in error &&
+      (error.statusCode === 404 || error.statusCode === 410)
+    if (gone) {
+      return {
+        status: 'error',
+        message: 'La suscripción de este navegador caducó: desactiva y vuelve a activar los avisos.',
+      }
+    }
+    return unexpectedFailure('sendTestPush', error)
+  }
 }

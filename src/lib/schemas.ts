@@ -246,6 +246,22 @@ export const deleteAccountConfirmationSchema = z.literal('BORRAR')
 // por UUID, y revocar es la única acción que viaja con ese id.
 export const mcpClientIdSchema = z.uuid('clientId debe ser un UUID.')
 
+// Suscripción push del navegador (spec §4 «Avisos push»): lo que devuelve
+// PushSubscription.toJSON(). El endpoint debe ser https (lo emite el servicio
+// de push del navegador) y las claves viajan en base64url sin relleno.
+export const pushEndpointSchema = z
+  .url('endpoint debe ser una URL.')
+  .startsWith('https://', 'endpoint debe ser https.')
+  .max(2000)
+
+export const pushSubscriptionSchema = z.object({
+  endpoint: pushEndpointSchema,
+  keys: z.object({
+    p256dh: z.base64url().min(1).max(512),
+    auth: z.base64url().min(1).max(512),
+  }),
+})
+
 // Entidad completa tal y como sale del repositorio. El user_id no viaja en la
 // entidad: lo pone siempre el servidor desde la sesión (spec §6.2).
 export type RoutineItem = {

@@ -90,8 +90,8 @@ export function DeleteAccountDialog({
         <p className="text-sm text-ink-2">
           Se borra <strong className="text-ink">todo, para siempre</strong>: tu rutina con sus
           notas, las categorías, el historial de completados, la conversación con el asistente, tu
-          clave de API cifrada y los accesos del modo MCP. No hay forma de deshacerlo ni copia que
-          recuperar.
+          clave de API cifrada, los accesos del modo MCP y las suscripciones de avisos. No hay
+          forma de deshacerlo ni copia que recuperar.
         </p>
 
         {/* misma bifurcación que el pie del calendario: en la web app
