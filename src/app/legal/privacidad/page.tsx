@@ -75,6 +75,11 @@ export default function PrivacidadPage() {
           <strong>Accesos del modo MCP:</strong> qué cliente externo autorizaste, cuándo y con qué
           permisos. Los gestiona el servidor OAuth de Supabase.
         </li>
+        <li>
+          <strong>Suscripciones de avisos:</strong> si activas los avisos en un dispositivo, la
+          dirección técnica de entrega y las claves de cifrado que emite tu navegador para ese
+          dispositivo. Se borran al desactivar los avisos y con la cuenta.
+        </li>
       </ul>
       <p>
         RutIA no pide ni deduce tu nombre real, tu teléfono, tu dirección ni tu ubicación, y no

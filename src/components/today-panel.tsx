@@ -2,6 +2,7 @@
 
 import { useEffect, useOptimistic, useState, useTransition } from 'react'
 import { reportTimezone, toggleCompleted } from '@/app/app/actions'
+import { PushToggle } from '@/components/push-toggle'
 import { DAY_NAMES } from '@/lib/calendar'
 import { categoryColorStyle } from '@/lib/category-colors'
 import type { Category, RoutineItem } from '@/lib/schemas'
@@ -18,12 +19,19 @@ export function TodayPanel({
   date,
   categories,
   onItemClick,
+  vapidPublicKey,
 }: {
   entries: TodayEntry[]
   weekday: number
   date: string
   categories: Category[]
   onItemClick: (item: RoutineItem) => void
+  /**
+   * Clave pública VAPID del despliegue, o null si los avisos no están
+   * configurados. Viaja como prop desde el servidor (mismo patrón que
+   * MCP_RESOURCE_URL): sin claves, la campanita no se ofrece.
+   */
+  vapidPublicKey: string | null
 }) {
   const [error, setError] = useState<string | null>(null)
   // Ítems con una escritura en vuelo. Sin esto, dos clics rápidos sobre la
@@ -177,6 +185,10 @@ export function TodayPanel({
           })}
         </ul>
       )}
+
+      {/* avisos push (spec §4): al pie y en tono terciario — es un ajuste,
+          no contenido del día */}
+      {vapidPublicKey != null && <PushToggle vapidPublicKey={vapidPublicKey} />}
     </section>
   )
 }

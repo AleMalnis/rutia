@@ -95,6 +95,9 @@ export default async function AppPage() {
         llmStatus={llmStatus}
         // se resuelve en el servidor: MCP_RESOURCE_URL no es NEXT_PUBLIC_
         mcpUrl={mcpServerUrl()}
+        // pública por naturaleza, pero mismo patrón servidor→prop que mcpUrl:
+        // sin claves VAPID configuradas, la campanita de avisos no se ofrece
+        vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? null}
         identity={
           <div>
             {/* La fecha manda y la marca acompaña (spec §4): quien abre la app

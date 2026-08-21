@@ -45,6 +45,7 @@ export function RoutineBoard({
   chatMessages,
   llmStatus: initialLlmStatus,
   mcpUrl,
+  vapidPublicKey,
   identity,
   sessionAction,
   children,
@@ -59,6 +60,8 @@ export function RoutineBoard({
   llmStatus: LlmKeyStatusView | null
   /** URL del servidor MCP, o null si este despliegue no lo tiene activado. */
   mcpUrl: string | null
+  /** Clave pública VAPID, o null si los avisos push no están configurados. */
+  vapidPublicKey: string | null
   /**
    * Identidad de la cabecera (marca + fecha). Viene de la página porque ahí
    * están el correo y la fecha del servidor; el tablero la compone con el
@@ -282,6 +285,7 @@ export function RoutineBoard({
                 date={todayDate}
                 categories={categories}
                 onItemClick={openItem}
+                vapidPublicKey={vapidPublicKey}
               />
             </div>
           </div>
