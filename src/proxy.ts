@@ -22,7 +22,9 @@ export const config = {
   // que ya excluye la regla de extensiones; el navegador lo pide fuera de la
   // sesión y verificarla ahí solo gasta. sw.js (spec §4 «Avisos push»), por
   // lo mismo: es un estático que el navegador refresca por su cuenta.
+  // api/push/send: servidor a servidor (pg_net con secreto compartido), sin
+  // cookies que refrescar — pasar por aquí solo gastaría.
   matcher: [
-    '/((?!api/mcp|\\.well-known/oauth-protected-resource|manifest\\.webmanifest|sw\\.js|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/mcp|api/push/send|\\.well-known/oauth-protected-resource|manifest\\.webmanifest|sw\\.js|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

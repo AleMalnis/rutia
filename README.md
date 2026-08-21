@@ -26,6 +26,14 @@ npm run dev
 Necesitas un proyecto de [Supabase](https://supabase.com) (la capa gratuita basta). Ejecuta las
 migraciones de `supabase/migrations/` **en orden numérico** desde el SQL Editor del dashboard.
 
+**Avisos push (opcional):** genera las claves VAPID una vez (`npx web-push generate-vapid-keys`)
+y un secreto de despacho (`openssl rand -base64 32`). En tu plataforma de despliegue configura
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y `PUSH_DISPATCH_SECRET`; en el SQL
+Editor crea los dos secretos de Vault con la URL de tu `/api/push/send` y ese mismo secreto
+(instrucciones exactas en la cabecera de [`0008_push_scheduler.sql`](supabase/migrations/0008_push_scheduler.sql))
+y ejecuta la migración. Sin nada de esto configurado, la app funciona igual y la campanita de
+avisos simplemente no se ofrece.
+
 **Cuenta de demostración (opcional):** crea un usuario en Authentication → Add user (con *Auto
 Confirm*), ajusta el correo en la cabecera de [`supabase/seed_demo_user.sql`](supabase/seed_demo_user.sql)
 si usaste otro, y ejecuta ese fichero en el SQL Editor (necesita la migración 0006, que además

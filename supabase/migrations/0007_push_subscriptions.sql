@@ -9,9 +9,10 @@
 --
 -- endpoint único GLOBAL, no por usuario: un dispositivo entrega a una sola
 -- bandeja. Si otro usuario inicia sesión en el mismo navegador (la demo, un
--- móvil compartido), la RLS le impide pisar la fila ajena: el cliente se
--- desuscribe en local, obtiene un endpoint nuevo y reintenta; la fila
--- huérfana la limpia el barrido de muertos de la etapa B.
+-- móvil compartido), el índice único rechaza el alta (23505) y la action lo
+-- distingue de un re-alta propio: el cliente se desuscribe en local, obtiene
+-- un endpoint nuevo y reintenta; la fila huérfana la limpia el barrido de
+-- muertos de la etapa B.
 --
 -- Ejecutar en el SQL Editor de Supabase después de 0006.
 -- ============================================================================

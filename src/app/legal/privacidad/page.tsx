@@ -78,7 +78,9 @@ export default function PrivacidadPage() {
         <li>
           <strong>Suscripciones de avisos:</strong> si activas los avisos en un dispositivo, la
           dirección técnica de entrega y las claves de cifrado que emite tu navegador para ese
-          dispositivo. Se borran al desactivar los avisos y con la cuenta.
+          dispositivo, más un registro de qué recordatorio ya se avisó y qué día (solo para no
+          avisarte dos veces; se borra a la semana). Se borran al desactivar los avisos y con la
+          cuenta.
         </li>
       </ul>
       <p>
@@ -154,6 +156,13 @@ export default function PrivacidadPage() {
         Lo que ese proveedor haga con lo recibido se rige por sus propias condiciones y por las de
         la cuenta a la que pertenece tu clave, no por esta política. Conviene leerlas: el
         tratamiento se produce en <strong>tu</strong> cuenta con ellos.
+      </p>
+      <p>
+        Si activas los <strong>avisos</strong> en un dispositivo, cada aviso (el título del
+        recordatorio y su hora, nunca el <em>detalle</em>) viaja hasta tu navegador a través del
+        servicio de push de su fabricante (Google, Mozilla o Apple, según el navegador). Va{' '}
+        <strong>cifrado de extremo a extremo</strong>: ese servicio ve que te llega un aviso y
+        cuándo, no lo que dice.
       </p>
       <p>
         Si además activas el <strong>modo MCP</strong> y conectas un cliente externo (Claude,

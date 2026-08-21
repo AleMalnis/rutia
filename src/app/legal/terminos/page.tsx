@@ -56,9 +56,13 @@ export default function TerminosPage() {
           calendario después de pedirle cambios: es tu mejor defensa, y para eso está a la vista.
         </li>
         <li>
-          <strong>No hay avisos ni notificaciones.</strong> RutIA no te llama, no te suena y no te
-          manda nada: solo muestra lo que toca cuando abres la app. No la uses como el único sistema
-          que te recuerda algo que no puedes olvidar.
+          <strong>Los avisos son opcionales y sin garantía de entrega.</strong> Por defecto RutIA
+          no suena: solo muestra lo que toca cuando abres la app. Si activas los avisos en un
+          dispositivo (desde el panel «Hoy»), recibirás una notificación a la hora de cada
+          recordatorio con su título y su hora — el <em>detalle</em> no se muestra nunca en la
+          pantalla de bloqueo. La entrega depende de tu dispositivo, de tu navegador y de su
+          servicio de push: puede llegar tarde o no llegar. Sigue sin valer como único sistema
+          para algo que no puedes olvidar.
         </li>
       </ul>
       <p>
