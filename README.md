@@ -50,10 +50,13 @@ cd rutia
 npm install
 ```
 
-**2. Crea un proyecto en Supabase** (la capa gratuita basta) y ejecuta las migraciones de
-[`supabase/migrations/`](supabase/migrations/) **en orden numérico** (0001 → 0010) desde el
-SQL Editor del dashboard, copiando y pegando cada fichero. Dos de ellas piden un ajuste antes de
-ejecutarse; lo indica su cabecera (la 0004 lleva tu dominio y la 0008 usa secretos de Vault).
+**2. Crea un proyecto en Supabase** (la capa gratuita basta), abre el **SQL Editor** del
+dashboard, pega el contenido completo de [`supabase/setup.sql`](supabase/setup.sql) y ejecútalo
+**una sola vez**: deja la base de datos entera — tablas, RLS, funciones y el planificador de
+avisos. Ese fichero es la concatenación generada de las migraciones de
+[`supabase/migrations/`](supabase/migrations/), que siguen siendo la fuente de verdad: para
+**actualizar** una instalación existente se ejecutan solo las migraciones numeradas que falten,
+nunca `setup.sql`.
 
 **3. Configura las variables de entorno:**
 
@@ -62,8 +65,11 @@ cp .env.example .env.local   # y rellena los valores
 ```
 
 Cada variable está documentada una a una en [`.env.example`](.env.example). Para arrancar en local
-bastan las dos de Supabase (URL y anon key, en Project Settings → API) y un `LLM_KEY_SECRET`
-aleatorio; el resto son opcionales. Ninguna clave secreta lleva el prefijo `NEXT_PUBLIC_`.
+bastan tres: las dos de Supabase (URL y clave pública, en el panel **Connect** del proyecto o en
+Project Settings → API Keys) y un `LLM_KEY_SECRET` aleatorio de **mínimo 32 caracteres** —
+genéralo con `openssl rand -hex 32`, o sin openssl:
+`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. El resto son
+opcionales y vienen comentadas. Ninguna clave secreta lleva el prefijo `NEXT_PUBLIC_`.
 
 **4. Arranca:**
 
@@ -71,8 +77,12 @@ aleatorio; el resto son opcionales. Ninguna clave secreta lleva el prefijo `NEXT
 npm run dev
 ```
 
-Abre <http://localhost:3000>, regístrate (pide confirmar el correo) y ya estás dentro. Para
-verificar el proyecto:
+Abre <http://localhost:3000> y regístrate. **Ojo con la confirmación por correo**: en un proyecto
+nuevo viene activada, y el SMTP integrado de Supabase solo entrega a los correos de los miembros
+del proyecto (y a ~2 correos/hora). Dos salidas: regístrate con el **mismo correo de tu cuenta de
+Supabase**, o desactiva antes *Confirm email* en Authentication → Sign In / Providers → Email —
+con ella desactivada el registro entra directo, sin correo. (Tercera vía: confirmar el usuario a
+mano en Authentication → Users.) Para verificar el proyecto:
 
 ```bash
 npm run lint        # ESLint
@@ -81,34 +91,23 @@ npm run test        # Vitest
 npm run build       # build de producción
 ```
 
-### Opcional: cuenta de demostración
-
-Crea un usuario en Authentication → Add user (con *Auto Confirm*), ajusta el correo en la cabecera
-de [`supabase/seed_demo_user.sql`](supabase/seed_demo_user.sql) si usaste otro, y ejecuta ese
-fichero en el SQL Editor (necesita la migración 0006, que además blinda la cuenta: ni borrarla ni
-cambiarle la contraseña o el correo). Siembra una semana realista con completados recientes. Es
-re-ejecutable y conviene hacerlo **tras cada sesión de evaluación**: restaura los datos y elimina
-lo que el evaluador anterior dejara — incluida su clave de API y su conversación, que en una
-cuenta compartida quedan a la vista del siguiente. Para cambiar la contraseña de la demo
-legítimamente: quita la marca en el SQL Editor
-(`update auth.users set raw_app_meta_data = raw_app_meta_data - 'demo' where email = '…'`),
-cámbiala en el dashboard y re-ejecuta el seed.
-
 ### Opcional: avisos push
 
-Genera las claves VAPID una vez (`npx web-push generate-vapid-keys`) y un secreto de despacho
-(`openssl rand -base64 32`). En tu plataforma de despliegue configura `VAPID_PUBLIC_KEY`,
-`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y `PUSH_DISPATCH_SECRET`, y en el SQL Editor crea los dos
-secretos de Vault con la URL de tu `/api/push/send` y ese mismo secreto (instrucciones exactas en
-la cabecera de [`0008_push_scheduler.sql`](supabase/migrations/0008_push_scheduler.sql)). La
-migración 0008 se ejecuta **una sola vez y en el orden normal**; si ya la ejecutaste, basta con
-añadir los secretos de Vault — el planificador los lee en cada tick. Sin nada de esto configurado,
-la app funciona igual y la campanita de avisos simplemente no se ofrece.
+La base de datos ya quedó lista (el planificador viene dentro de `setup.sql`); solo falta darle
+identidad y secreto. Genera las claves VAPID una vez (`npx web-push generate-vapid-keys`) y un
+secreto de despacho (`openssl rand -base64 32`); configura `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y `PUSH_DISPATCH_SECRET` en tu plataforma de despliegue; y
+crea los dos secretos de Vault en el SQL Editor — las dos líneas exactas están en la cabecera de
+[`0008_push_scheduler.sql`](supabase/migrations/0008_push_scheduler.sql). (Esa cabecera dice
+«antes de ejecutar esta migración» porque describe el flujo migración a migración; con
+`setup.sql` la 0008 ya corrió, y basta con crear los secretos ahora — el planificador los lee en
+cada tick.) Sin nada de esto configurado, la app funciona igual y la campanita de avisos
+simplemente no se ofrece.
 
 ### Opcional: modo MCP
 
-La activación completa (migración 0004, `MCP_RESOURCE_URL` y el dashboard de Supabase) está en la
-sección [Modo MCP](#modo-mcp).
+La activación completa (URL del recurso, `MCP_RESOURCE_URL` y el dashboard de Supabase) está en
+la sección [Modo MCP](#modo-mcp).
 
 ## Estructuración
 
@@ -136,8 +135,10 @@ rutia/
 │   ├── proxy.ts               # middleware: refresco de sesión y protección de /app
 │   └── tests/                 # unitarios (Vitest)
 ├── supabase/
-│   ├── migrations/            # 0001…0010: tablas, RLS, funciones, hook de tokens, planificador
-│   └── seed_demo_user.sql     # cuenta de demostración re-sembrable
+│   ├── setup.sql              # instalación de un solo pegado (generado; no editar a mano)
+│   ├── migrations/            # 0001…0010: la fuente de verdad (tablas, RLS, funciones, planificador)
+│   └── seed_demo_user.sql     # cuenta de demostración re-sembrable (autodocumentado en su cabecera)
+├── scripts/                   # build-setup-sql.mjs: regenera setup.sql (npm run db:setup)
 └── public/                    # iconos PWA y service worker de avisos (sw.js)
 ```
 
@@ -169,7 +170,9 @@ consulta por quien la hace.
   de salud** (art. 9), exigido en las tres puertas de escritura.
 - **Apariencia personalizable**: 5 temas de superficie × claro/oscuro/auto y 3 fuentes, todos
   validados de contraste.
-- **Cuenta de demostración** re-sembrable y blindada, para evaluar sin registrarse.
+- **Cuenta de demostración** re-sembrable y blindada, para enseñar la app sin registrarse
+  (opcional; instrucciones en la cabecera de
+  [`supabase/seed_demo_user.sql`](supabase/seed_demo_user.sql)).
 
 ## Modo MCP
 
@@ -180,11 +183,18 @@ interviene en esa ruta.
 
 ### Activación (una sola vez)
 
-**1. Migración.** Abre `supabase/migrations/0004_mcp_access_token_hook.sql`, cambia la URL del
-`insert` por la de tu dominio (`https://TU-DOMINIO/api/mcp`) y ejecútalo en el SQL Editor.
+**1. La URL del recurso.** El identificador de audiencia debe ser tu dominio. Si ya instalaste
+con `setup.sql`, basta un UPDATE en el SQL Editor:
+
+```sql
+update public.mcp_config set resource_url = 'https://TU-DOMINIO/api/mcp';
+```
+
+(También puedes regenerar el fichero de instalación con la URL ya puesta:
+`npm run db:setup -- https://TU-DOMINIO`, antes de instalar.)
 
 **2. Variable de entorno.** Añade `MCP_RESOURCE_URL` con **exactamente** esa misma URL, en local y
-en tu plataforma de despliegue. Si no coincide con la de la migración, los tokens se rechazarán con
+en tu plataforma de despliegue. Si no coincide con la del paso 1, los tokens se rechazarán con
 un 401 y el motivo no se ve desde el cliente.
 
 **3. Dashboard de Supabase → Authentication:**

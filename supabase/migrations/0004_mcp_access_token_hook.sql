@@ -15,8 +15,8 @@
 -- ante cualquier forma inesperada devuelve el evento intacto, y todo el
 -- cuerpo va dentro de un bloque con captura de excepciones.
 --
--- Ejecutar en el SQL Editor de Supabase después de 0003, y luego activarlo en
--- Authentication → Hooks → Customize Access Token.
+-- Ejecutar en el SQL Editor de Supabase después de 0003.
+-- Tras ejecutarlo, activar el hook en Authentication → Hooks → Customize Access Token.
 -- ============================================================================
 
 -- La audiencia es el identificador del recurso (la URL del endpoint MCP) y
