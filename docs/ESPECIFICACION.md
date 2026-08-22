@@ -58,7 +58,7 @@ El agente interpreta la petición, **modifica la rutina mediante herramientas** 
 
 ### Should — segunda oleada, solo con el Must cerrado
 - **Modo MCP (v1):** servidor MCP remoto que expone las herramientas sobre `RoutineService`; autorización **OAuth 2.1 con Supabase como servidor de autorización** y pantalla de consentimiento propia; guía de conexión en el README (Claude, ChatGPT, IDEs). Coste de inferencia: cero para la app — el modelo lo pone el cliente del usuario.
-- **Instalable por terceros (plug and play):** botón «Deploy with Vercel» en el README y guía de autoinstalación paso a paso (proyecto gratuito de Supabase + ejecutar la migración SQL + 3 variables de entorno, ~15 minutos). Quien se autoinstala pone su propia API key y paga su propio consumo.
+- **Instalable por terceros (plug and play):** guía de autoinstalación paso a paso en el README **(hecha)**: proyecto gratuito de Supabase + un solo pegado de `setup.sql` + 3 variables de entorno, ~15 minutos. Quien se autoinstala pone su propia API key y paga su propio consumo. El botón «Deploy with Vercel» sigue pendiente (§10).
 - Historial de conversación persistente entre sesiones.
 - **Deshacer** el último cambio del agente (snapshot previo de la rutina).
 - **Cumplimiento semanal** simple por ítem (p. ej. «Medicación: 6/7 esta semana») y rachas básicas.
@@ -406,7 +406,7 @@ rutia/
 - **Flujo de trabajo:** rama por funcionalidad → Pull Request → revisión automática (CodeRabbit) + checks de CI → merge. `main` se mantiene siempre desplegable.
 - **Vercel:** preview automática por PR, producción en `main`. Variables de entorno configuradas en Vercel (LLM) y Supabase (BD).
 - Desplegar **desde el primer día** (aunque solo sea el login): la rama `main` siempre tiene una versión funcionando y las sorpresas de despliegue aparecen pronto, cuando son baratas.
-- **Distribución open source:** el README incluirá un botón «Deploy with Vercel» (clona el repo a la cuenta del visitante y le pide las variables de entorno) y la guía de autoinstalación. La migración `supabase/migrations/0001_init.sql` y el `.env.example` documentado son las otras dos piezas que lo hacen plug and play.
+- **Distribución open source:** la guía de autoinstalación vive en el README («Instalación y ejecución»). Las piezas plug-and-play son `supabase/setup.sql` — la concatenación **generada** de todas las migraciones (`npm run db:setup`, con un test candado en `src/tests/setup-sql.test.ts` que rompe en CI si se desincroniza), pensada para instalar la base de datos entera de un solo pegado — y el `.env.example` documentado (tres variables para arrancar en local). El botón «Deploy with Vercel» sigue pendiente (roadmap): clonaría el repo a la cuenta del visitante y le pediría las variables.
 
 ---
 
