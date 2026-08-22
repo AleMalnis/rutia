@@ -55,8 +55,15 @@ for (const file of files) {
   sql += body.trim() + '\n'
 }
 
+const DEFAULT_MCP_URL = 'https://rutia-six.vercel.app/api/mcp'
 if (domain) {
-  sql = sql.replaceAll('https://rutia-six.vercel.app/api/mcp', `${domain}/api/mcp`)
+  // si la URL por defecto cambió en las migraciones, avisar en vez de
+  // imprimir un éxito falso con un setup.sql que apunta a otro sitio
+  if (!sql.includes(DEFAULT_MCP_URL)) {
+    console.error(`No se encontró la URL por defecto del MCP (${DEFAULT_MCP_URL}) en las migraciones: nada que sustituir.`)
+    process.exit(1)
+  }
+  sql = sql.replaceAll(DEFAULT_MCP_URL, `${domain}/api/mcp`)
 }
 
 writeFileSync(outputPath, sql)

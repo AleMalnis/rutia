@@ -30,7 +30,7 @@ La especificación completa —el documento que manda sobre el código— está 
 | **Supabase** | Postgres + Auth + **RLS** (la frontera de seguridad real), servidor OAuth 2.1 para el modo MCP, `pg_cron`/`pg_net` para los avisos push y Vault para sus secretos |
 | **Vercel** | Alojamiento; cada push a `main` despliega solo |
 | **Zod** | Validación en todas las fronteras: formularios, server actions, endpoints y respuestas del LLM |
-| **Vitest** | ~252 tests unitarios de servicios, validación y endpoints; corren en cada PR (GitHub Actions) |
+| **Vitest** | ~253 tests unitarios de servicios, validación y endpoints; corren en cada PR (GitHub Actions) |
 | **web-push** | Criptografía de los avisos (VAPID + cifrado extremo a extremo) |
 | **html-to-image** | La lámina PNG de la semana, generada en el navegador con la geometría real del calendario |
 
@@ -40,7 +40,7 @@ y ninguna consulta se salta la RLS: no existe ninguna clave de servicio en el c�
 
 ## Instalación y ejecución
 
-Requisitos: **Node.js 20 o superior**, npm y una cuenta gratuita de [Supabase](https://supabase.com).
+Requisitos: **Node.js 20.9 o superior** (lo exige Next.js 16), npm y una cuenta gratuita de [Supabase](https://supabase.com).
 
 **1. Clona e instala:**
 
