@@ -46,6 +46,7 @@ export function RoutineBoard({
   llmStatus: initialLlmStatus,
   mcpUrl,
   vapidPublicKey,
+  hasHealthConsent,
   identity,
   sessionAction,
   children,
@@ -62,6 +63,8 @@ export function RoutineBoard({
   mcpUrl: string | null
   /** Clave pública VAPID, o null si los avisos push no están configurados. */
   vapidPublicKey: string | null
+  /** Si el usuario ya registró el consentimiento de datos de salud (§12.12). */
+  hasHealthConsent: boolean
   /**
    * Identidad de la cabecera (marca + fecha). Viene de la página porque ahí
    * están el correo y la fecha del servidor; el tablero la compone con el
@@ -377,6 +380,7 @@ export function RoutineBoard({
           key={dialog.item?.id ?? 'nuevo'}
           item={dialog.item}
           categories={categories}
+          hasHealthConsent={hasHealthConsent}
           onClose={close}
         />
       )}

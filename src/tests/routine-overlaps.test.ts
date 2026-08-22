@@ -9,6 +9,7 @@ import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 
 // Los tests de este archivo no tocan completions ni el perfil: stubs inertes.
 function deps(items: ItemsRepo) {
@@ -53,7 +54,17 @@ function deps(items: ItemsRepo) {
       return 0
     },
   }
-  return { items, completions, profiles, categories }
+  // consentimiento del art. 9 dado por defecto: aquí se prueban solapes
+  const consents: HealthConsentsRepo = {
+    async has() {
+      return true
+    },
+    async record() {},
+    async listByUser() {
+      return []
+    },
+  }
+  return { items, completions, profiles, categories, consents }
 }
 
 let seq = 0

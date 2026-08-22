@@ -5,6 +5,7 @@ import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createRoutineService } from '@/services/routine.service'
 
 const USER = 'user-1'
@@ -93,7 +94,17 @@ function mkDeps(existing: Category[] = []) {
       return 1
     },
   }
-  return { deps: { items, completions, profiles, categories }, store }
+  // consentimiento del art. 9 dado por defecto: aquí se prueban categorías
+  const consents: HealthConsentsRepo = {
+    async has() {
+      return true
+    },
+    async record() {},
+    async listByUser() {
+      return []
+    },
+  }
+  return { deps: { items, completions, profiles, categories, consents }, store }
 }
 
 describe('categoryInputSchema', () => {

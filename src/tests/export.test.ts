@@ -6,6 +6,7 @@ import type { CompletionsRepo } from '@/repositories/completions.repo'
 import type { ItemsRepo } from '@/repositories/items.repo'
 import type { LlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createExportService } from '@/services/export.service'
 
 // Exportación de datos (spec §12.13). Lo que estos tests protegen de verdad:
@@ -69,7 +70,16 @@ function mkService(overrides: { llmRow?: { provider: 'anthropic'; api_key_encryp
         ? { provider: 'anthropic' as const, api_key_encrypted: 'v1:SECRETO-CIFRADO-QUE-NO-DEBE-SALIR' }
         : overrides.llmRow,
   } as unknown as LlmSettingsRepo
-  return createExportService({ profiles, categories, items, completions, chat, llmSettings })
+  const healthConsents: HealthConsentsRepo = {
+    async has() {
+      return true
+    },
+    async record() {},
+    async listByUser() {
+      return [{ version: '2026-08-22', acceptedAt: '2026-08-22T10:00:00Z' }]
+    },
+  }
+  return createExportService({ profiles, categories, items, completions, chat, llmSettings, healthConsents })
 }
 
 describe('ExportService.buildExport', () => {

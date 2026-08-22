@@ -2,6 +2,7 @@ import type { ChatRepo } from '@/repositories/chat.repo'
 import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import type { ItemsRepo } from '@/repositories/items.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 import type { LlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
 
@@ -26,6 +27,7 @@ export type ExportDeps = {
   completions: CompletionsRepo
   chat: ChatRepo
   llmSettings: LlmSettingsRepo
+  healthConsents: HealthConsentsRepo
 }
 
 export function createExportService(deps: ExportDeps) {
@@ -33,13 +35,14 @@ export function createExportService(deps: ExportDeps) {
     // el tipo se INFIERE: así la ruta ve perfil.zona_horaria tipado y no
     // necesita ningún cast sobre el payload
     async buildExport(userId: string, email: string | null, now: Date) {
-      const [profile, categories, items, completions, conversation, llm] = await Promise.all([
+      const [profile, categories, items, completions, conversation, llm, consents] = await Promise.all([
         deps.profiles.getProfile(userId),
         deps.categories.listByUser(userId),
         deps.items.listByUser(userId),
         deps.completions.listAllByUser(userId),
         deps.chat.listAll(userId),
         deps.llmSettings.get(userId),
+        deps.healthConsents.listByUser(userId),
       ])
 
       return {
@@ -83,6 +86,11 @@ export function createExportService(deps: ExportDeps) {
         })),
         // solo el proveedor: la clave no sale del servidor en ninguna forma
         ajustes_ia: llm == null ? null : { proveedor: llm.provider },
+        // el registro auditable del art. 9 también es un dato del usuario
+        consentimientos_salud: consents.map((consent) => ({
+          version: consent.version,
+          aceptado_en: consent.acceptedAt,
+        })),
       }
     },
   }

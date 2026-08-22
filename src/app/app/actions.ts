@@ -11,10 +11,12 @@ import {
   pushEndpointSchema,
   pushSubscriptionSchema,
 } from '@/lib/schemas'
+import { HEALTH_CONSENT_VERSION } from '@/lib/legal'
 import { RepoError } from '@/repositories/items.repo'
 import { createPushSubscriptionsRepo } from '@/repositories/push-subscriptions.repo'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
+import { createHealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
 import { createLlmSettingsRepo } from '@/repositories/llm-settings.repo'
@@ -64,6 +66,7 @@ async function getContext() {
       completions: createCompletionsRepo(supabase),
       profiles: createProfilesRepo(supabase),
       categories: createCategoriesRepo(supabase),
+      consents: createHealthConsentsRepo(supabase),
     }),
   }
 }
@@ -98,6 +101,12 @@ export async function saveItem(
   const input = parseItemForm(formData)
 
   try {
+    // consentimiento del art. 9 (spec §12.12): la casilla marcada se registra
+    // ANTES de guardar — el servicio exige la fila para cualquier texto libre
+    if (formData.get('healthConsent') === 'on') {
+      await createHealthConsentsRepo(context.supabase).record(userId, HEALTH_CONSENT_VERSION)
+    }
+
     const result =
       typeof itemId === 'string' && itemId !== ''
         ? await service.updateItem(userId, itemId, input)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { SecretConfigError } from '@/lib/crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
+import { createHealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
       completions: createCompletionsRepo(supabase),
       profiles: createProfilesRepo(supabase),
       categories: createCategoriesRepo(supabase),
+      consents: createHealthConsentsRepo(supabase),
     })
     const agent = createAgentService({
       routine,

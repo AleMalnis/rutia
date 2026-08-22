@@ -10,6 +10,7 @@ import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import type { ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createRoutineService } from '@/services/routine.service'
 
 const USER = 'user-1'
@@ -79,7 +80,16 @@ function mkDeps(initialPreferences: Record<string, unknown> = {}) {
       return 0
     },
   }
-  return { deps: { items, completions, profiles, categories }, prefs: () => preferences }
+  const consents: HealthConsentsRepo = {
+    async has() {
+      return true
+    },
+    async record() {},
+    async listByUser() {
+      return []
+    },
+  }
+  return { deps: { items, completions, profiles, categories, consents }, prefs: () => preferences }
 }
 
 describe('normalizeAppearance', () => {

@@ -4,6 +4,7 @@ import { checkOrigin } from '@/lib/mcp/metadata'
 import { dispatch, declaredVersion, parseRequest } from '@/lib/mcp/protocol'
 import { createMcpClient } from '@/lib/supabase/mcp'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
+import { createHealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
@@ -148,6 +149,7 @@ export async function POST(request: Request) {
       completions: createCompletionsRepo(supabase),
       profiles: createProfilesRepo(supabase),
       categories: createCategoriesRepo(supabase),
+      consents: createHealthConsentsRepo(supabase),
     })
     const now = new Date()
 
