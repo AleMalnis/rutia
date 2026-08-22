@@ -7,6 +7,7 @@ import { parseItemForm } from '@/lib/item-form'
 import webpush from 'web-push'
 import {
   deleteAccountConfirmationSchema,
+  healthConsentFieldSchema,
   mcpClientIdSchema,
   pushEndpointSchema,
   pushSubscriptionSchema,
@@ -102,8 +103,10 @@ export async function saveItem(
 
   try {
     // consentimiento del art. 9 (spec §12.12): la casilla marcada se registra
-    // ANTES de guardar — el servicio exige la fila para cualquier texto libre
-    if (formData.get('healthConsent') === 'on') {
+    // ANTES de guardar — el servicio exige la fila para cualquier texto libre.
+    // Validada con Zod como toda frontera; registrar de más no daña (marcar
+    // la casilla ES el consentimiento, se guarde o no el ítem después).
+    if (healthConsentFieldSchema.safeParse(formData.get('healthConsent')).success) {
       await createHealthConsentsRepo(context.supabase).record(userId, HEALTH_CONSENT_VERSION)
     }
 

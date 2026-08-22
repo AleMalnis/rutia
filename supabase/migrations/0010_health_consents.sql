@@ -33,3 +33,24 @@ create policy health_consents_select_own on public.health_consents
 create policy health_consents_insert_own on public.health_consents
   for insert to authenticated with check (user_id = (select auth.uid()));
 -- sin update ni delete a propósito: un consentimiento registrado no se toca
+
+-- La marca de tiempo la pone SIEMPRE la base de datos: un default se puede
+-- pisar enviando la columna por PostgREST, y un registro auditable no puede
+-- llevar una fecha elegida por el interesado. (La versión sí viene de la app:
+-- una versión inventada es inerte — el servicio solo pregunta por la real —
+-- y quien la enviara estaría, igualmente, consintiendo con su sesión.)
+create or replace function public.pin_health_consent_time()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.accepted_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists health_consents_pin_time on public.health_consents;
+create trigger health_consents_pin_time
+  before insert on public.health_consents
+  for each row execute function public.pin_health_consent_time();

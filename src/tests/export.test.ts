@@ -3,7 +3,7 @@ import type { Category, RoutineItem } from '@/lib/schemas'
 import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { ChatRepo } from '@/repositories/chat.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
-import type { ItemsRepo } from '@/repositories/items.repo'
+import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { LlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
 import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
@@ -38,7 +38,12 @@ const CATEGORY: Category = {
   color: '#e34948',
 }
 
-function mkService(overrides: { llmRow?: { provider: 'anthropic'; api_key_encrypted: string } | null } = {}) {
+function mkService(
+  overrides: {
+    llmRow?: { provider: 'anthropic'; api_key_encrypted: string } | null
+    consentsError?: RepoError
+  } = {},
+) {
   const profiles = {
     getProfile: async () => ({
       displayName: 'Ale',
@@ -76,6 +81,7 @@ function mkService(overrides: { llmRow?: { provider: 'anthropic'; api_key_encryp
     },
     async record() {},
     async listByUser() {
+      if (overrides.consentsError) throw overrides.consentsError
       return [{ version: '2026-08-22', acceptedAt: '2026-08-22T10:00:00Z' }]
     },
   }
@@ -96,6 +102,24 @@ describe('ExportService.buildExport', () => {
   it('sin clave configurada, ajustes_ia es null', async () => {
     const data = await mkService({ llmRow: null }).buildExport(USER, 'ale@ejemplo.com', NOW)
     expect(data.ajustes_ia).toBeNull()
+  })
+
+  it('el consentimiento de salud sale con versión y fecha (art. 15)', async () => {
+    const data = await mkService().buildExport(USER, 'ale@ejemplo.com', NOW)
+    expect(data.consentimientos_salud).toEqual([
+      { version: '2026-08-22', aceptado_en: '2026-08-22T10:00:00Z' },
+    ])
+  })
+
+  it('sin la tabla de la 0010 (PGRST205) el export sale sin consentimientos, no en 500', async () => {
+    const service = mkService({ consentsError: new RepoError('no existe', 'PGRST205') })
+    const data = await service.buildExport(USER, 'ale@ejemplo.com', NOW)
+    expect(data.consentimientos_salud).toEqual([])
+  })
+
+  it('cualquier otro error de consentimientos sigue siendo fatal', async () => {
+    const service = mkService({ consentsError: new RepoError('caída real', '57014') })
+    await expect(service.buildExport(USER, 'ale@ejemplo.com', NOW)).rejects.toThrow('caída real')
   })
 
   it('exporta TODO lo prometido por la política: perfil, rutina con notas, checks y conversación', async () => {

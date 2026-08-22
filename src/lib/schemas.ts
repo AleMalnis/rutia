@@ -242,6 +242,10 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>
 // El diálogo ya la exige, pero una server action es invocable sin la UI.
 export const deleteAccountConfirmationSchema = z.literal('BORRAR')
 
+// Casilla de consentimiento de datos de salud (spec §12.12): un checkbox
+// HTML marcado viaja exactamente como 'on'; cualquier otra cosa no consiente.
+export const healthConsentFieldSchema = z.literal('on')
+
 // Cliente OAuth del modo MCP (spec §12.9): GoTrue identifica cada cliente
 // por UUID, y revocar es la única acción que viaja con ese id.
 export const mcpClientIdSchema = z.uuid('clientId debe ser un UUID.')

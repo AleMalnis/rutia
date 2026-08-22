@@ -1,7 +1,7 @@
 import type { ChatRepo } from '@/repositories/chat.repo'
 import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
-import type { ItemsRepo } from '@/repositories/items.repo'
+import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 import type { LlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
@@ -42,7 +42,13 @@ export function createExportService(deps: ExportDeps) {
         deps.completions.listAllByUser(userId),
         deps.chat.listAll(userId),
         deps.llmSettings.get(userId),
-        deps.healthConsents.listByUser(userId),
+        // resiliente al despliegue-antes-de-migración: si la tabla de la 0010
+        // aún no existe (PGRST205), el export sale sin consentimientos en vez
+        // de morir en 500; cualquier otro error sigue siendo fatal
+        deps.healthConsents.listByUser(userId).catch((error: unknown) => {
+          if (error instanceof RepoError && error.code === 'PGRST205') return []
+          throw error
+        }),
       ])
 
       return {

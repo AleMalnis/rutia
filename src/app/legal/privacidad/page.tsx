@@ -107,9 +107,11 @@ export default function PrivacidadPage() {
         proveedor de IA que tú hayas configurado (apartado 5). La primera vez que guardas texto en
         el <em>detalle</em> o las <em>notas</em> —da igual desde el formulario, el chat o un
         cliente MCP— la app te pide marcar una <strong>casilla de consentimiento explícito</strong>,
-        y ese consentimiento queda registrado con fecha y versión del texto aceptado. Puedes
-        retirarlo borrando o editando ese texto; el registro de que consentiste se conserva como
-        prueba.
+        y ese consentimiento queda registrado con fecha y versión del texto aceptado. Borrar o
+        editar ese texto elimina el dato y cesa su tratamiento. El consentimiento registrado
+        sigue valiendo para lo que escribas después; si quieres retirarlo del todo —que la app
+        vuelva a pedírtelo la próxima vez— escríbenos y eliminamos el registro. El histórico de
+        que consentiste se conserva mientras tanto como prueba.
       </p>
       <p>
         Si prefieres no tratarla, la app funciona igual sin ella: un ítem puede llamarse
