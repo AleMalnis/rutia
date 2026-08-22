@@ -109,7 +109,7 @@ simplemente no se ofrece.
 La activación completa (URL del recurso, `MCP_RESOURCE_URL` y el dashboard de Supabase) está en
 la sección [Modo MCP](#modo-mcp).
 
-## Estructuración
+## Estructura del proyecto
 
 ```text
 rutia/
@@ -173,6 +173,17 @@ consulta por quien la hace.
 - **Cuenta de demostración** re-sembrable y blindada, para enseñar la app sin registrarse
   (opcional; instrucciones en la cabecera de
   [`supabase/seed_demo_user.sql`](supabase/seed_demo_user.sql)).
+
+## Cuenta de demostración
+
+La instancia pública incluye una cuenta de demostración para probar la app sin registrarse: está
+**blindada** (migración 0006: no puede borrarse ni cambiar de credenciales) y su contenido es
+**re-sembrable** — [`supabase/seed_demo_user.sql`](supabase/seed_demo_user.sql) la restaura como
+nueva.
+
+- **URL**: <https://rutia-six.vercel.app/login>
+- **Correo**: `demo@rutia.app`
+- **Contraseña**: `TestingTestMoure11`
 
 ## Modo MCP
 
@@ -258,6 +269,13 @@ desmarcar un completado elimina un registro que existía.
 
 El acceso de un cliente se revoca **dentro de la app** (Ajustes → IA → Conectores → «Accesos
 concedidos»), y también desde el propio cliente.
+
+<!--
+## Demo y presentación
+
+- Slides: [pendiente]
+- Vídeo: [pendiente]
+-->
 
 ## Licencia
 
