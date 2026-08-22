@@ -2,10 +2,12 @@ import { redirect } from 'next/navigation'
 import { InstallHint } from '@/components/install-hint'
 import { RoutineBoard } from '@/components/routine-board'
 import { SecretConfigError } from '@/lib/crypto'
+import { HEALTH_CONSENT_VERSION } from '@/lib/legal'
 import { mcpServerUrl } from '@/lib/mcp/connect'
 import { formatTodayLabel } from '@/lib/today'
 import { createClient } from '@/lib/supabase/server'
 import { createCategoriesRepo } from '@/repositories/categories.repo'
+import { createHealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
@@ -51,6 +53,7 @@ export default async function AppPage() {
     completions: createCompletionsRepo(supabase),
     profiles: createProfilesRepo(supabase),
     categories: createCategoriesRepo(supabase),
+    consents: createHealthConsentsRepo(supabase),
   })
   // la página solo necesita el historial: el LLMClient se construye por
   // petición en /api/chat con la clave BYOK del usuario (spec §6.4)
@@ -60,14 +63,25 @@ export default async function AppPage() {
     llm: null,
   })
   const llmSettings = createLlmSettingsService({ repo: createLlmSettingsRepo(supabase) })
-  const [{ items }, categories, today, appearance, chatHistory, llmStatus] = await Promise.all([
-    routineService.listItems(userId),
-    routineService.listCategories(userId),
-    routineService.listToday(userId, new Date()),
-    routineService.getAppearance(userId),
-    agentService.history(userId),
-    safeLlmStatus(llmSettings, userId),
-  ])
+  const [{ items }, categories, today, appearance, chatHistory, llmStatus, hasHealthConsent] =
+    await Promise.all([
+      routineService.listItems(userId),
+      routineService.listCategories(userId),
+      routineService.listToday(userId, new Date()),
+      routineService.getAppearance(userId),
+      agentService.history(userId),
+      safeLlmStatus(llmSettings, userId),
+      // consentimiento del art. 9 (spec §12.12): decide si el formulario de
+      // ítem enseña la casilla. Resiliente como safeLlmStatus: un fallo aquí
+      // (p. ej. la migración 0010 aún sin ejecutar) no debe tumbar la página —
+      // en el peor caso la casilla se enseña de más
+      createHealthConsentsRepo(supabase)
+        .has(userId, HEALTH_CONSENT_VERSION)
+        .catch((error: unknown) => {
+          console.error(`AppPage healthConsent: ${error instanceof Error ? error.name : 'error'}`)
+          return false
+        }),
+    ])
 
   return (
     // Los data-attrs activan el tema, el modo y la fuente elegidos (spec §4):
@@ -100,6 +114,7 @@ export default async function AppPage() {
         // trim + vacío→null: una variable definida pero vacía (estado común
         // en los paneles de hosting) también cuenta como no configurada
         vapidPublicKey={process.env.VAPID_PUBLIC_KEY?.trim() || null}
+        hasHealthConsent={hasHealthConsent}
         identity={
           <div>
             {/* La fecha manda y la marca acompaña (spec §4): quien abre la app

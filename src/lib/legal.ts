@@ -14,4 +14,13 @@ export const CONTACTO = 'intermalnisalevalor@gmail.com'
 export const REPOSITORIO = 'https://github.com/AleMalnis/rutia'
 
 /** Fecha de la última revisión de los textos legales. */
-export const ACTUALIZADO = '21 de agosto de 2026'
+export const ACTUALIZADO = '22 de agosto de 2026'
+
+/**
+ * Versión del texto de consentimiento de datos de salud (art. 9, spec
+ * §12.12). Se guarda junto a cada consentimiento registrado: si el texto de
+ * la casilla o del apartado 3 de la política cambia de forma sustancial, hay
+ * que subir esta fecha — los consentimientos antiguos quedan ligados a la
+ * versión que el usuario leyó de verdad.
+ */
+export const HEALTH_CONSENT_VERSION = '2026-08-22'

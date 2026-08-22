@@ -5,6 +5,7 @@ import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import type { ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createAgentService } from '@/services/agent.service'
 import { AGENT_TOOLS, executeAgentTool } from '@/services/agent.tools'
 import { LLMError, type LLMClient, type LLMReply, type LLMToolDef, type LLMTurn } from '@/services/llm.client'
@@ -104,7 +105,7 @@ function mkItemsRepo(initial: RoutineItem[] = []) {
   return { repo, store, calls }
 }
 
-function mkDeps(initialItems: RoutineItem[] = [], categories: Category[] = []) {
+function mkDeps(initialItems: RoutineItem[] = [], categories: Category[] = [], healthConsent = true) {
   const items = mkItemsRepo(initialItems)
   const marked = new Set<string>()
   const completions: CompletionsRepo = {
@@ -150,8 +151,19 @@ function mkDeps(initialItems: RoutineItem[] = [], categories: Category[] = []) {
       return 0
     },
   }
+  // consentimiento del art. 9 (spec §12.12): dado por defecto para que las
+  // pruebas de dominio no lo arrastren; los tests del consentimiento lo apagan
+  const consents: HealthConsentsRepo = {
+    async has() {
+      return healthConsent
+    },
+    async record() {},
+    async listByUser() {
+      return []
+    },
+  }
   return {
-    deps: { items: items.repo, completions, profiles, categories: categoriesRepo },
+    deps: { items: items.repo, completions, profiles, categories: categoriesRepo, consents },
     items,
     marked,
   }
@@ -370,6 +382,52 @@ describe('RoutineService.bulkCreateItems', () => {
     expect(await service.bulkCreateItems(USER, enormes)).toMatchObject({
       ok: false,
       reason: 'invalid',
+    })
+  })
+})
+
+describe('RoutineService: consentimiento de datos de salud (art. 9, spec §12.12)', () => {
+  const conDetalle = {
+    title: 'Medicación',
+    kind: 'reminder',
+    days: [0],
+    start: '09:00',
+    detail: 'Enalapril 10 mg',
+  }
+
+  it('sin consentimiento rechaza texto libre en las tres escrituras, con razón propia', async () => {
+    const service = createRoutineService(mkDeps([], [], false).deps)
+    expect(await service.createItem(USER, conDetalle)).toMatchObject({
+      ok: false,
+      reason: 'consent',
+    })
+    expect(
+      await service.createItem(USER, { ...conDetalle, detail: undefined, notes: 'pauta' }),
+    ).toMatchObject({ ok: false, reason: 'consent' })
+    expect(await service.bulkCreateItems(USER, [conDetalle])).toMatchObject({
+      ok: false,
+      reason: 'consent',
+    })
+  })
+
+  it('sin consentimiento, un ítem sin texto libre entra sin fricción', async () => {
+    const service = createRoutineService(mkDeps([], [], false).deps)
+    expect(
+      await service.createItem(USER, { title: 'Gimnasio', kind: 'reminder', days: [0], start: '18:00' }),
+    ).toMatchObject({ ok: true })
+  })
+
+  it('con consentimiento registrado el texto libre pasa', async () => {
+    const service = createRoutineService(mkDeps().deps)
+    expect(await service.createItem(USER, conDetalle)).toMatchObject({ ok: true })
+  })
+
+  it('editar un ítem antiguo que YA traía notas también lo exige', async () => {
+    const existing = mkItem({ notes: 'pauta antigua' })
+    const service = createRoutineService(mkDeps([existing], [], false).deps)
+    expect(await service.updateItem(USER, existing.id, { title: 'Otro título' })).toMatchObject({
+      ok: false,
+      reason: 'consent',
     })
   })
 })

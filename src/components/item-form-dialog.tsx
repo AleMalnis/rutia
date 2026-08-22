@@ -8,6 +8,8 @@ import type { Category, RoutineItem } from '@/lib/schemas'
 type Props = {
   item: RoutineItem | null
   categories: Category[]
+  /** Si el usuario ya registró el consentimiento de datos de salud (§12.12). */
+  hasHealthConsent: boolean
   onClose: () => void
 }
 
@@ -17,10 +19,16 @@ const INPUT_CLASS =
 const DAY_CLASS =
   'flex cursor-pointer items-center gap-1 rounded-md border border-edge px-2 py-1 text-sm text-ink has-checked:border-accent has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent'
 
-export function ItemFormDialog({ item, categories, onClose }: Props) {
+export function ItemFormDialog({ item, categories, hasHealthConsent, onClose }: Props) {
   const [state, formAction] = useActionState<ItemFormState, FormData>(saveItem, null)
   const [isSubmitting, startSubmit] = useTransition()
   const [kind, setKind] = useState<'block' | 'reminder'>(item?.kind ?? 'block')
+  // La casilla del art. 9 (spec §12.12) solo aparece cuando hace falta: hay
+  // texto libre (el detalle del formulario, o unas notas que el ítem ya
+  // trae del chat) y no consta consentimiento previo.
+  const [carriesFreeText, setCarriesFreeText] = useState(
+    Boolean(item?.detail?.trim()) || Boolean(item?.notes?.trim()),
+  )
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -213,9 +221,42 @@ export function ItemFormDialog({ item, categories, onClose }: Props) {
               maxLength={120}
               placeholder="Pasta · Enalapril 10 mg…"
               defaultValue={item?.detail ?? ''}
+              onChange={(event) =>
+                setCarriesFreeText(
+                  event.target.value.trim() !== '' || Boolean(item?.notes?.trim()),
+                )
+              }
               className={INPUT_CLASS}
             />
           </label>
+
+          {/* consentimiento explícito del art. 9 (spec §12.12): required
+              nativo — si la casilla está visible, no se envía sin marcarla;
+              el servicio la exige igualmente en el servidor */}
+          {!hasHealthConsent && carriesFreeText && (
+            <label className="flex items-start gap-2 rounded-md border border-edge bg-page p-2.5 text-sm text-ink-2">
+              <input
+                type="checkbox"
+                name="healthConsent"
+                required
+                className="mt-0.5 size-4 shrink-0 accent-accent"
+              />
+              <span>
+                El detalle y las notas pueden contener{' '}
+                <strong className="text-ink">datos de salud</strong>. Doy mi consentimiento
+                explícito para que RutIA guarde y trate ese texto como describe el{' '}
+                <a
+                  href="/legal/privacidad"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  apartado 3 de la política
+                </a>
+                . Queda registrado con fecha y versión.
+              </span>
+            </label>
+          )}
 
           {state?.status === 'error' && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">

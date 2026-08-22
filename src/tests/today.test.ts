@@ -6,6 +6,7 @@ import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import type { ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
 
 let seq = 0
 function mkItem(partial: Partial<RoutineItem>): RoutineItem {
@@ -170,8 +171,18 @@ describe('RoutineService: hoy y completado', () => {
         return 0
       },
     }
+    // consentimiento del art. 9 dado por defecto: aquí se prueba el panel Hoy
+    const consents: HealthConsentsRepo = {
+      async has() {
+        return true
+      },
+      async record() {},
+      async listByUser() {
+        return []
+      },
+    }
     return {
-      deps: { items: itemsRepo, completions, profiles, categories },
+      deps: { items: itemsRepo, completions, profiles, categories, consents },
       calls,
       marked,
       zone: () => zone,

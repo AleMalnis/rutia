@@ -76,6 +76,11 @@ export default function PrivacidadPage() {
           permisos. Los gestiona el servidor OAuth de Supabase.
         </li>
         <li>
+          <strong>Consentimiento de datos de salud:</strong> si lo has dado, la fecha en que lo
+          diste y la versión del texto que aceptaste. Es un registro de solo escritura: prueba el
+          consentimiento y solo desaparece con la cuenta.
+        </li>
+        <li>
           <strong>Suscripciones de avisos:</strong> si activas los avisos en un dispositivo, la
           dirección técnica de entrega y las claves de cifrado que emite tu navegador para ese
           dispositivo — se borran al desactivar los avisos y con la cuenta. Aparte, un registro de
@@ -99,8 +104,14 @@ export default function PrivacidadPage() {
       <p>
         RutIA no necesita esa información para funcionar y no te la pide en ningún momento. Si la
         escribes, se trata <strong>únicamente</strong> para mostrártela a ti y para enviarla al
-        proveedor de IA que tú hayas configurado (apartado 5), sobre la base de tu consentimiento
-        al aportarla voluntariamente. Puedes retirarlo borrando o editando ese texto.
+        proveedor de IA que tú hayas configurado (apartado 5). La primera vez que guardas texto en
+        el <em>detalle</em> o las <em>notas</em> —da igual desde el formulario, el chat o un
+        cliente MCP— la app te pide marcar una <strong>casilla de consentimiento explícito</strong>,
+        y ese consentimiento queda registrado con fecha y versión del texto aceptado. Borrar o
+        editar ese texto elimina el dato y cesa su tratamiento. El consentimiento registrado
+        sigue valiendo para lo que escribas después; si quieres retirarlo del todo —que la app
+        vuelva a pedírtelo la próxima vez— escríbenos y eliminamos el registro. El histórico de
+        que consentiste se conserva mientras tanto como prueba.
       </p>
       <p>
         Si prefieres no tratarla, la app funciona igual sin ella: un ítem puede llamarse
@@ -115,8 +126,10 @@ export default function PrivacidadPage() {
           responder en el chat): ejecución del contrato de uso que aceptas al crear la cuenta.
         </li>
         <li>
-          <strong>Tratar datos de salud que hayas escrito:</strong> tu consentimiento explícito, que
-          das al introducirlos y retiras al borrarlos.
+          <strong>Tratar datos de salud que hayas escrito:</strong> tu consentimiento explícito
+          (artículo 9.2.a), que das marcando la casilla al guardar por primera vez texto en{' '}
+          <em>detalle</em> o <em>notas</em> — queda registrado con fecha y versión — y retiras
+          borrando ese texto.
         </li>
         <li>
           <strong>Enviar tu rutina al proveedor de IA:</strong> tu consentimiento, que das al
@@ -302,10 +315,6 @@ export default function PrivacidadPage() {
         falta antes que dar por hecho lo que no está:
       </p>
       <ul>
-        <li>
-          No hay un consentimiento explícito e independiente para los datos de salud, con su propio
-          registro: hoy se apoya en que los aportas voluntariamente.
-        </li>
         <li>
           El acceso del modo MCP no está acotado por permisos: como se explica en el apartado 5, el
           token entregado alcanza todo lo que alcanza tu propia sesión. Acotarlo exige permisos

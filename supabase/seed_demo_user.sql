@@ -10,7 +10,7 @@
 --      usuarios con contraseña.
 --   2. Si usaste otro correo, cámbialo en la línea demo_email de abajo.
 --   3. Ejecuta este fichero en el SQL Editor, después de las migraciones
---      (necesita la 0007).
+--      (necesita la 0010).
 --
 -- Qué siembra: la marca demo en raw_app_meta_data (la 0006 la usa para
 -- impedir el borrado; el usuario no puede editársela desde el cliente), las
@@ -47,6 +47,7 @@ begin
   delete from public.routine_snapshots where user_id = demo_id;
   delete from public.llm_settings where user_id = demo_id;
   delete from public.push_subscriptions where user_id = demo_id;
+  delete from public.health_consents where user_id = demo_id;
 
   -- las 8 categorías por defecto con la paleta validada (0002)
   insert into public.categories (user_id, name, color) values

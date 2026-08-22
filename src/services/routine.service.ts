@@ -19,6 +19,8 @@ import type { CategoriesRepo } from '@/repositories/categories.repo'
 import type { CompletionsRepo } from '@/repositories/completions.repo'
 import { RepoError, type ItemsRepo } from '@/repositories/items.repo'
 import type { ProfilesRepo } from '@/repositories/profiles.repo'
+import type { HealthConsentsRepo } from '@/repositories/health-consents.repo'
+import { HEALTH_CONSENT_VERSION } from '@/lib/legal'
 
 // RoutineService (spec §7.2): toda la lógica de la rutina vive aquí. Los
 // server actions y las futuras herramientas del agente llaman a este servicio;
@@ -85,6 +87,9 @@ export type ServiceFailure =
   | { ok: false; reason: 'invalid'; message: string }
   | { ok: false; reason: 'not_found'; message: string }
   | { ok: false; reason: 'conflict'; conflicts: OverlapConflict[] }
+  // detalle/notas llevan texto y falta el consentimiento del art. 9 (spec
+  // §12.12): la regla vive aquí para cubrir las TRES puertas de escritura
+  | { ok: false; reason: 'consent'; message: string }
 
 export type ItemResult = { ok: true; item: RoutineItem } | ServiceFailure
 export type ListResult = { ok: true; items: RoutineItem[] }
@@ -182,6 +187,16 @@ export type RoutineDeps = {
   completions: CompletionsRepo
   profiles: ProfilesRepo
   categories: CategoriesRepo
+  consents: HealthConsentsRepo
+}
+
+// Consentimiento del art. 9 (spec §12.12): los campos de texto libre son
+// donde la política avisa de que pueden ir datos de salud.
+const CONSENT_MESSAGE =
+  'Para guardar texto en «detalle» o «notas» hace falta tu consentimiento explícito de datos de salud: márcalo una vez en el formulario de ítem (política de privacidad, apartado 3).'
+
+function carriesFreeText(data: { detail?: string | null; notes?: string | null }): boolean {
+  return Boolean(data.detail?.trim()) || Boolean(data.notes?.trim())
 }
 
 // unique(user_id, name) en BD: el duplicado llega como 23505
@@ -197,7 +212,12 @@ export function createRoutineService({
   completions: completionsRepo,
   profiles: profilesRepo,
   categories: categoriesRepo,
+  consents: consentsRepo,
 }: RoutineDeps) {
+  async function missingHealthConsent(userId: string): Promise<ServiceFailure | null> {
+    if (await consentsRepo.has(userId, HEALTH_CONSENT_VERSION)) return null
+    return { ok: false, reason: 'consent', message: CONSENT_MESSAGE }
+  }
   return {
     async listItems(userId: string): Promise<ListResult> {
       return { ok: true, items: await itemsRepo.listByUser(userId) }
@@ -375,6 +395,11 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
       }
 
+      if (carriesFreeText(parsed.data)) {
+        const missing = await missingHealthConsent(userId)
+        if (missing) return missing
+      }
+
       if (parsed.data.kind === 'block') {
         const existing = await itemsRepo.listByUser(userId)
         const conflicts = findBlockOverlaps(parsed.data, existing)
@@ -430,6 +455,12 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: firstIssue(validated.error) }
       }
 
+      // también los ítems antiguos con texto: seguir tratándolo es tratarlo
+      if (carriesFreeText(validated.data)) {
+        const missing = await missingHealthConsent(userId)
+        if (missing) return missing
+      }
+
       if (validated.data.kind === 'block') {
         const existing = await itemsRepo.listByUser(userId)
         const conflicts = findBlockOverlaps(validated.data, existing, parsedId.data)
@@ -471,6 +502,11 @@ export function createRoutineService({
         return { ok: false, reason: 'invalid', message: firstIssue(parsed.error) }
       }
       const batch = parsed.data
+
+      if (batch.some(carriesFreeText)) {
+        const missing = await missingHealthConsent(userId)
+        if (missing) return missing
+      }
 
       // solapes dentro del propio lote: el lote está mal formado, no es un
       // conflicto negociable con la rutina existente

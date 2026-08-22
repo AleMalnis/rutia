@@ -4,6 +4,7 @@ import { createCategoriesRepo } from '@/repositories/categories.repo'
 import { createChatRepo } from '@/repositories/chat.repo'
 import { createCompletionsRepo } from '@/repositories/completions.repo'
 import { createItemsRepo } from '@/repositories/items.repo'
+import { createHealthConsentsRepo } from '@/repositories/health-consents.repo'
 import { createLlmSettingsRepo } from '@/repositories/llm-settings.repo'
 import { createProfilesRepo } from '@/repositories/profiles.repo'
 import { createExportService } from '@/services/export.service'
@@ -65,6 +66,7 @@ export async function GET() {
       completions: createCompletionsRepo(supabase),
       chat: createChatRepo(supabase),
       llmSettings: createLlmSettingsRepo(supabase),
+      healthConsents: createHealthConsentsRepo(supabase),
     })
 
     // UN solo instante para el contenido y el nombre: con dos new Date(), un
